@@ -1,0 +1,81 @@
+﻿<Window x:Class="Chess.ChessWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Chess"
+        mc:Ignorable="d"
+        Title="Chess by Viktor Bill" Height="800" Width="1000" ResizeMode="NoResize" Icon="/Resources/blackQueen.png" Background="#FF262422" WindowStartupLocation="CenterScreen">
+    <!-- Game Grid-->
+    <Grid x:Name="GameGrid">
+        <Grid.RowDefinitions>
+            <!-- 8 rows -->
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <!-- 8 cols -->
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="800"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        
+        <!-- Evaluation -->
+        <!-- Evaluation -->
+        <Grid Grid.Column="0" Grid.Row="0" x:Name="EvaluationGrid" Width="20">
+            <Grid.RowDefinitions>
+                <RowDefinition x:Name="BlackEvalRow" Height="*" />
+                <RowDefinition x:Name="WhiteEvalRow" Height="*" />
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="Black"/>
+            <Border Grid.Row="1" Background="White"/>
+        </Grid>
+
+        <!-- Chess Board Grid-->
+        <Grid Grid.Column="1" Grid.Row="0" x:Name="ChessBoardGrid" MouseLeftButtonDown="ChessBoardGrid_MouseLeftButtonDown">
+            <Grid.RowDefinitions>
+                <!-- 8 rows -->
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <!-- 8 cols -->
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+        </Grid>
+
+        <Grid Margin="5, 5, 0, 0" Grid.Column="2" Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock x:Name="BlackTimer" Foreground="White" FontFamily="Courier New" Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center" FontSize="32" FontWeight="Bold">No Timer</TextBlock>
+
+            <TextBlock Margin="0, 10, 0, 0" Foreground="White" FontFamily="Courier New" Grid.Row="1" Grid.Column="0" HorizontalAlignment="Center" FontSize="32" FontWeight="Bold">Moves</TextBlock>
+
+            <ItemsControl Margin="0, 10" Foreground="White" FontWeight="Bold" FontFamily="Courier New" Grid.Row="2" Grid.Column="0" x:Name="Moves"/>
+
+            <TextBlock x:Name="WhiteTimer" Foreground="White" FontFamily="Courier New" Grid.Row="3" Grid.Column="0" HorizontalAlignment="Center" FontSize="32" FontWeight="Bold">No Timer</TextBlock>
+        </Grid>
+
+    </Grid>
+</Window>
