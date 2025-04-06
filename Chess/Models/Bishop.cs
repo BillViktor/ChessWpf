@@ -5,7 +5,7 @@
         public Bishop(ColorEnum aColor)
         {
             Color = aColor;
-            Value = aColor == ColorEnum.White ? 3 : -3;
+            Value = aColor == ColorEnum.White ? 300 : -300;
             
             if(aColor == ColorEnum.Black)
             {

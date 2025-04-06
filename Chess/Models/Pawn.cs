@@ -5,7 +5,7 @@
         public Pawn(ColorEnum aColor)
         {
             Color = aColor;
-            Value = aColor == ColorEnum.White ? 1 : -1;
+            Value = aColor == ColorEnum.White ? 100 : -100;
 
             if (aColor == ColorEnum.Black)
             {

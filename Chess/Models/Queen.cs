@@ -5,7 +5,7 @@
         public Queen(ColorEnum aColor)
         {
             Color = aColor;
-            Value = aColor == ColorEnum.White ? 9 : -9;
+            Value = aColor == ColorEnum.White ? 900 : -900;
 
             if (aColor == ColorEnum.Black)
             {

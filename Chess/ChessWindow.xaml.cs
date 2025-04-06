@@ -59,18 +59,15 @@ namespace Chess
         private void UpdateEvalBar()
         {
             //Get the eval
-            int sEval = mChessGame.EvaluateBoard();
-
-            // Clamp eval to [-10, 10]
-            sEval = Math.Max(-10, Math.Min(10, sEval));
+            var sEval = mChessGame.EvaluateBoard();
 
             // Convert to 0.0 to 1.0: -10 = 0 (white losing), +10 = 1 (white winning)
-            double whitePortion = (sEval + 10) / 20.0;
-            double blackPortion = 1.0 - whitePortion;
+            double sWhitePortion = ((double)sEval.White / sEval.Total);
+            double sBlackPortion = 1.0 - sWhitePortion;
 
             // Assign correctly: bottom is white, top is black
-            WhiteEvalRow.Height = new GridLength(whitePortion, GridUnitType.Star);
-            BlackEvalRow.Height = new GridLength(blackPortion, GridUnitType.Star);
+            WhiteEvalRow.Height = new GridLength(sWhitePortion, GridUnitType.Star);
+            BlackEvalRow.Height = new GridLength(sBlackPortion, GridUnitType.Star);
         }
 
         /// <summary>
@@ -426,20 +423,28 @@ namespace Chess
 
             if(mSinglePlayer && mChessGame.ColorToMove == ColorEnum.Black)
             {
-                ComputerMove(true);
+                ComputerMove();
             }
         }
 
         /// <summary>
         /// Makes a move for the computer
         /// </summary>
-        private void ComputerMove(bool aMaximizingPlayer)
+        private void ComputerMove()
         {
+            int sPositionsTried = 0;
+
+            Stopwatch sStopWatch = new Stopwatch();
+            sStopWatch.Start();
+
             //Use the minimax algorithm
-            var sBestMove = mChessGame.MiniMax(5, aMaximizingPlayer);
+            var sBestMove = mChessGame.MiniMax(3, false, out sPositionsTried);
+
+            sStopWatch.Stop();
+            Console.WriteLine($"Tried {sPositionsTried} in {sStopWatch.ElapsedMilliseconds}ms");
 
             //Make the move
-            if (sBestMove.Item2 != -1 && sBestMove.Item3 != -1 && sBestMove.Item4 != -1 && sBestMove.Item5 != -1)
+            if (sBestMove.RowFrom != -1 && sBestMove.ColFrom != -1 && sBestMove.RowTo != -1 && sBestMove.ColTo != -1)
             {
                 mChessGame.SelectedPiece = mChessGame.ChessBoard[sBestMove.RowFrom, sBestMove.ColFrom];
                 MovePiece(sBestMove.RowTo, sBestMove.ColTo);

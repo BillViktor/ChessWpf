@@ -381,10 +381,10 @@ namespace Chess
         }
 
         /// <summary>
-        ///  Gets the coordinates of all pieces of a given color.
+        /// Gets all the pieces of a given color
         /// </summary>
         /// <param name="aColor">The color of the pieces to fetch</param>
-        /// <returns>A list of coordinates</returns>
+        /// <returns>A list of pieces</returns>
         public List<(int, int)> GetAllPiecesCoordinates(ColorEnum aColor)
         {
             List<(int, int)> sPieces = new List<(int, int)>();
@@ -401,6 +401,15 @@ namespace Chess
             }
 
             return sPieces;
+        }
+
+        /// <summary>
+        /// Orders a list of moves based on likelihood of being good
+        /// </summary>
+        /// <param name="aMovesList">The list of moves to order</param>
+        private void OrderMoves(List<Move> aMovesList)
+        {
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -427,9 +436,14 @@ namespace Chess
         /// Evaluates the board and returns a score, a positive number means white is winning, a negative number means black is winning
         /// </summary>
         /// <returns>A score of the board</returns>
-        public int EvaluateBoard()
+        public (int Total, int Black, int White) EvaluateBoard()
         {
-            int sScore = 0;
+            int sBlack = 0;
+            int sWhite = 0;
+
+            if (IsKingInCheckmate(ColorEnum.White)) return (int.MinValue, 0, 0);
+            if(IsKingInCheckmate(ColorEnum.Black)) return (int.MaxValue, 0, 0);
+            if (IsStalemate(ColorEnum.White)) return (0, 0, 0);
 
             for (int sRow = 0; sRow < 8; sRow++)
             {
@@ -438,76 +452,118 @@ namespace Chess
                     ChessPiece? sPiece = mChessBoard[sRow, sCol];
                     if (sPiece != null)
                     {
-                        sScore += sPiece.Value;
-                    }
-                }
-            }
-
-            return sScore;
-        }
-
-        /// <summary>
-        /// Minimax function with pruning to find the best move
-        /// </summary>
-        /// <param name="aDepth"></param>
-        /// <param name="aIsMaximizingPlayer"></param>
-        /// <param name="aMoveCount"></param>
-        /// <param name="aAlpha"></param>
-        /// <param name="aBeta"></param>
-        /// <returns></returns>
-        public (int BestEval, int RowFrom, int ColFrom, int RowTo, int ColTo) MiniMax(int aDepth, bool aIsMaximizingPlayer, int aAlpha = int.MinValue, int aBeta = int.MaxValue)
-        {
-            if (aDepth == 0 || IsGameOver())
-            {
-                return (EvaluateBoard(), -1, -1, -1, -1); // Include evaluation in return value
-            }
-
-            int sBestEval = aIsMaximizingPlayer ? int.MinValue : int.MaxValue;
-            (int, int, int, int) sBestMove = (-1, -1, -1, -1);
-            ColorEnum sColor = aIsMaximizingPlayer ? ColorEnum.Black : ColorEnum.White;
-            Func<int, int, bool> sComparer = aIsMaximizingPlayer ? (x, y) => x > y : (x, y) => x < y;
-
-            foreach (var (sRowFrom, sColFrom) in GetAllPiecesCoordinates(sColor))
-            {
-                for (int sRowTo = 0; sRowTo < 8; sRowTo++)
-                {
-                    for (int sColTo = 0; sColTo < 8; sColTo++)
-                    {
-                        if (!IsValidMove(sRowFrom, sColFrom, sRowTo, sColTo)) continue;
-
-                        // Make the move
-                        ChessPiece? sCapturedPiece = MakeMove(sRowFrom, sColFrom, sRowTo, sColTo);
-
-                        // Recursively evaluate
-                        int sChildMoveCount;
-                        var (sEval, _, _, _, _) = MiniMax(aDepth - 1, !aIsMaximizingPlayer, aAlpha, aBeta);
-
-                        // Undo the move
-                        UndoMove(sRowFrom, sColFrom, sRowTo, sColTo, sCapturedPiece);
-
-                        // Update best move if needed
-                        if (sComparer(sEval, sBestEval))
+                        if (sPiece.Color == ColorEnum.White)
                         {
-                            sBestEval = sEval;
-                            sBestMove = (sRowFrom, sColFrom, sRowTo, sColTo);
-                        }
-
-                        // Alpha-beta pruning
-                        if (aIsMaximizingPlayer)
-                        {
-                            aAlpha = Math.Max(aAlpha, sBestEval);
-                            if (aBeta <= aAlpha) return (sBestEval, sBestMove.Item1, sBestMove.Item2, sBestMove.Item3, sBestMove.Item4);
+                            sWhite += sPiece.Value;
                         }
                         else
                         {
-                            aBeta = Math.Min(aBeta, sBestEval);
-                            if (aBeta <= aAlpha) return (sBestEval, sBestMove.Item1, sBestMove.Item2, sBestMove.Item3, sBestMove.Item4);
+                            sBlack += sPiece.Value;
                         }
                     }
                 }
             }
 
-            return (sBestEval, sBestMove.Item1, sBestMove.Item2, sBestMove.Item3, sBestMove.Item4);
+            return (sWhite - sBlack, sBlack, sWhite);
+        }
+
+        /// <summary>
+        /// Minimax function
+        /// </summary>
+        public (int BestEval, int RowFrom, int ColFrom, int RowTo, int ColTo) MiniMax(int aDepth, bool aIsMaximizingPlayer, out int aPosTried, int aAlpha = int.MinValue, int aBeta = int.MaxValue)
+        {
+            aPosTried = 0;
+
+            if (aDepth == 0 || IsGameOver())
+            {
+                return (EvaluateBoard().Total, -1, -1, -1, -1); // Include evaluation in return value
+            }
+
+            int sValue;
+            int sBestRowFrom = -1, sBestColFrom = -1, sBestRowTo = -1, sBestColTo = -1;
+
+            sValue = aIsMaximizingPlayer ? int.MinValue : int.MaxValue;
+
+            if (aIsMaximizingPlayer)
+            {
+                sValue = int.MinValue;
+
+                foreach(var sPos in GetAllPiecesCoordinates(ColorEnum.White))
+                {
+                    for (int sRow = 0; sRow < 8; sRow++)
+                    {
+                        for (int sCol = 0; sCol < 8; sCol++)
+                        {
+                            if (!IsValidMove(sPos.Item1, sPos.Item2, sRow, sCol)) continue;
+
+                            aPosTried++;
+
+                            //Make move
+                            ChessPiece? sCapturedPiece = MakeMove(sPos.Item1, sPos.Item2, sRow, sCol);
+
+                            int sSubPosTried;
+                            var sNext = MiniMax(aDepth - 1, false, out sSubPosTried);
+                            aPosTried += sSubPosTried;
+
+                            //Undo move
+                            UndoMove(sPos.Item1, sPos.Item2, sRow, sCol, sCapturedPiece);
+
+                            if (sNext.BestEval > sValue)
+                            {
+                                sValue = sNext.BestEval;
+                                sBestRowFrom = sPos.Item1;
+                                sBestColFrom = sPos.Item2;
+                                sBestRowTo = sRow;
+                                sBestColTo = sCol;
+                            }
+
+                            aAlpha = Math.Max(aAlpha, sValue);
+                            if (aBeta <= aAlpha) break; // Beta cutoff
+                        }
+                    }
+                }
+            }
+            else
+            {
+                sValue = int.MaxValue;
+
+                foreach (var sPos in GetAllPiecesCoordinates(ColorEnum.Black))
+                {
+                    for (int sRow = 0; sRow < 8; sRow++)
+                    {
+                        for (int sCol = 0; sCol < 8; sCol++)
+                        {
+                            if (!IsValidMove(sPos.Item1, sPos.Item2, sRow, sCol)) continue;
+
+                            aPosTried++;
+
+                            //Make move
+                            ChessPiece? sCapturedPiece = MakeMove(sPos.Item1, sPos.Item2, sRow, sCol);
+
+                            int sSubPosTried;
+                            var sNext = MiniMax(aDepth - 1, true, out sSubPosTried);
+                            aPosTried += sSubPosTried;
+
+                            //Undo move
+                            UndoMove(sPos.Item1, sPos.Item2, sRow, sCol, sCapturedPiece);
+
+                            if (sNext.BestEval < sValue)
+                            {
+                                sValue = sNext.BestEval;
+                                sBestRowFrom = sPos.Item1;
+                                sBestColFrom = sPos.Item2;
+                                sBestRowTo = sRow;
+                                sBestColTo = sCol;
+                            }
+
+                            aBeta = Math.Min(aBeta, sValue);
+                            if (aBeta <= aAlpha) break; // Alpha cutoff
+                        }
+                    }
+                }
+            }
+
+            return (sValue, sBestRowFrom, sBestColFrom, sBestRowTo, sBestColTo);
         }
 
         /// <summary>
@@ -520,10 +576,10 @@ namespace Chess
         /// <returns>The piece captured</returns>
         private ChessPiece? MakeMove(int aRowFrom, int aColFrom, int aRowTo, int aColTo)
         {
-            ChessPiece? capturedPiece = mChessBoard[aRowTo, aColTo];
+            ChessPiece? sCapturedPiece = mChessBoard[aRowTo, aColTo];
             mChessBoard[aRowTo, aColTo] = mChessBoard[aRowFrom, aColFrom];
             mChessBoard[aRowFrom, aColFrom] = null;
-            return capturedPiece;
+            return sCapturedPiece;
         }
 
         /// <summary>

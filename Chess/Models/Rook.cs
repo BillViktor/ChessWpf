@@ -5,7 +5,7 @@
         public Rook(ColorEnum aColor)
         {
             Color = aColor;
-            Value = aColor == ColorEnum.White ? 5 : -5;
+            Value = aColor == ColorEnum.White ? 500 : -500;
 
             if (aColor == ColorEnum.Black)
             {
