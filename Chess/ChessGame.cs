@@ -1,5 +1,4 @@
 ﻿using Chess.Models;
-using System.Windows.Input;
 using System.Windows.Shapes;
 
 namespace Chess
@@ -23,7 +22,6 @@ namespace Chess
         private List<Rectangle> mHighLightedCells = new List<Rectangle>();
         private ChessPiece? mSelectedPiece = null;
         private int mCurrentMove = 1;
-        private bool mSinglePlayer = false;
 
         //Properties
         public ChessPiece?[,] ChessBoard { get => mChessBoard; set => mChessBoard = value; }
@@ -31,18 +29,9 @@ namespace Chess
         public List<Rectangle> HighLightedCells { get => mHighLightedCells; set => mHighLightedCells = value; }
         public ChessPiece? SelectedPiece { get => mSelectedPiece; set => mSelectedPiece = value; }
         public int CurrentMove { get => mCurrentMove; set => mCurrentMove = value; }
-        public bool SinglePlayer { get => mSinglePlayer; set => mSinglePlayer = value; }
 
 
         #region Movement Validation
-        /// <summary>
-        /// Checks if the move is valid or not
-        /// </summary>
-        /// <param name="aRowFrom">The row of the piece</param>
-        /// <param name="aColFrom">The col of the piece</param>
-        /// <param name="aRowTo">The target row</param>
-        /// <param name="aColTo">The target col</param>
-        /// <returns></returns>
         public bool IsValidMove(int aRowFrom, int aColFrom, int aRowTo, int aColTo)
         {
             ChessPiece? sChessPiece = mChessBoard[aRowFrom, aColFrom];
@@ -99,15 +88,6 @@ namespace Chess
             }
         }
 
-        /// <summary>
-        /// Checks if the path between two points are clear
-        /// </summary>
-        /// <param name="aRowFrom">The row to move from</param>
-        /// <param name="aColFrom">The col to move from</param>
-        /// <param name="aRowTo">The row to move to</param>
-        /// <param name="aColTo">The col to move to</param>
-        /// <param name="aPawn">The pawn to move</param>
-        /// <returns>True if path is clear, false if not</returns>
         private bool IsPathClear(int aRowFrom, int aColFrom, int aRowTo, int aColTo)
         {
             int sRowStep = (aRowTo - aRowFrom) == 0 ? 0 : (aRowTo - aRowFrom) / Math.Abs(aRowTo - aRowFrom);
@@ -127,14 +107,6 @@ namespace Chess
             return true;
         }
 
-        /// <summary>
-        /// Checks if the move is valid for a rook
-        /// </summary>
-        /// <param name="aRowFrom">The row to move from</param>
-        /// <param name="aColFrom">The col to move from</param>
-        /// <param name="aRowTo">The row to move to</param>
-        /// <param name="aColTo">The col to move to</param>
-        /// <param name="aPawn">The pawn to move</param>
         private bool IsValidRookMove(int aRowFrom, int aColFrom, int aRowTo, int aColTo)
         {
             if (aRowFrom != aRowTo && aColFrom != aColTo) return false; // Must move in a straight line
@@ -142,14 +114,6 @@ namespace Chess
             return IsPathClear(aRowFrom, aColFrom, aRowTo, aColTo);
         }
 
-        /// <summary>
-        /// Checks if the move is valid for a bishop
-        /// </summary>
-        /// <param name="aRowFrom">The row to move from</param>
-        /// <param name="aColFrom">The col to move from</param>
-        /// <param name="aRowTo">The row to move to</param>
-        /// <param name="aColTo">The col to move to</param>
-        /// <param name="aPawn">The pawn to move</param>
         private bool IsValidBishopMove(int aRowFrom, int aColFrom, int aRowTo, int aColTo)
         {
             if (Math.Abs(aRowFrom - aRowTo) != Math.Abs(aColFrom - aColTo)) return false; // Must move diagonally
@@ -157,27 +121,11 @@ namespace Chess
             return IsPathClear(aRowFrom, aColFrom, aRowTo, aColTo);
         }
 
-        /// <summary>
-        /// Checks if the move is valid for a queen
-        /// </summary>
-        /// <param name="aRowFrom">The row to move from</param>
-        /// <param name="aColFrom">The col to move from</param>
-        /// <param name="aRowTo">The row to move to</param>
-        /// <param name="aColTo">The col to move to</param>
-        /// <param name="aPawn">The pawn to move</param>
         private bool IsValidQueenMove(int aRowFrom, int aColFrom, int aRowTo, int aColTo)
         {
             return IsValidRookMove(aRowFrom, aColFrom, aRowTo, aColTo) || IsValidBishopMove(aRowFrom, aColFrom, aRowTo, aColTo);
         }
 
-        /// <summary>
-        /// Checks if the move is valid for a knight
-        /// </summary>
-        /// <param name="aRowFrom">The row to move from</param>
-        /// <param name="aColFrom">The col to move from</param>
-        /// <param name="aRowTo">The row to move to</param>
-        /// <param name="aColTo">The col to move to</param>
-        /// <param name="aPawn">The pawn to move</param>
         private bool IsValidKnightMove(int aRowFrom, int aColFrom, int aRowTo, int aColTo)
         {
             int rowDiff = Math.Abs(aRowTo - aRowFrom);
@@ -186,15 +134,6 @@ namespace Chess
             return (rowDiff == 2 && colDiff == 1) || (rowDiff == 1 && colDiff == 2);
         }
 
-        /// <summary>
-        /// Checks if the move is valid for a pawn
-        /// </summary>
-        /// <param name="aRowFrom">The row to move from</param>
-        /// <param name="aColFrom">The col to move from</param>
-        /// <param name="aRowTo">The row to move to</param>
-        /// <param name="aColTo">The col to move to</param>
-        /// <param name="aPawn">The pawn to move</param>
-        /// <returns>True if valid, false if not</returns>
         private bool IsValidPawnMove(int aRowFrom, int aColFrom, int aRowTo, int aColTo, Pawn aPawn)
         {
             //White moves up, Black moves down
@@ -222,13 +161,6 @@ namespace Chess
             return false;
         }
 
-        /// <summary>
-        /// Checks if the move is valid for a king
-        /// </summary>
-        /// <param name="aRowFrom">The row to move from</param>
-        /// <param name="aColFrom">The col to move from</param>
-        /// <param name="aRowTo">The row to move to</param>
-        /// <param name="aColTo">The col to move to</param>
         private bool IsValidKingMove(int aRowFrom, int aColFrom, int aRowTo, int aColTo)
         {
             return Math.Abs(aRowFrom - aRowTo) <= 1 && Math.Abs(aColFrom - aColTo) <= 1;
@@ -237,12 +169,6 @@ namespace Chess
 
 
         #region Helpers
-        /// <summary>
-        /// Find the position of the king
-        /// </summary>
-        /// <param name="aColor">The color of the king to find</param>
-        /// <param name="aRow">The row the king is in</param>
-        /// <param name="aCol">The col the king is in</param>
         public (int aRow, int aCol) GetKingPosition(ColorEnum aColor)
         {
             for (int sRow = 0; sRow < 8; sRow++)
@@ -259,11 +185,6 @@ namespace Chess
             return (-1, -1);
         }
 
-        /// <summary>
-        /// Checks if the given color's king is in check
-        /// </summary>
-        /// <param name="aColor">The color of the king</param>
-        /// <returns>True if in check, false if not</returns>
         public bool IsKingInCheck(ColorEnum aColor)
         {
             //Find the king
@@ -291,11 +212,6 @@ namespace Chess
             return false;
         }
 
-        /// <summary>
-        /// Checks wether the given king is in checkmate or not
-        /// </summary>
-        /// <param name="aColor">The color of the king to check</param>
-        /// <returns>True if king is in checkmate, false if not</returns>
         public bool IsKingInCheckmate(ColorEnum aColor)
         {
             //Not even in check => No checkmate
@@ -341,11 +257,6 @@ namespace Chess
             return true;
         }
 
-        /// <summary>
-        /// Checks if the given color is in a stalemate (no valid moves available)
-        /// </summary>
-        /// <param name="aColor">The color of the player</param>
-        /// <returns>True if in stalemate, false if not</returns>
         public bool IsStalemate(ColorEnum aColor)
         {
             if (IsKingInCheck(aColor)) return false; //Check => not stalemate
@@ -371,20 +282,11 @@ namespace Chess
             return true;
         }
 
-        /// <summary>
-        /// Returns true if the game is over (checkmate or stalemate)
-        /// </summary>
-        /// <returns>True if game is over, false if not</returns>
         private bool IsGameOver()
         {
             return IsKingInCheckmate(ColorEnum.White) || IsKingInCheckmate(ColorEnum.Black) || IsStalemate(ColorEnum.White) || IsStalemate(ColorEnum.Black);
         }
 
-        /// <summary>
-        /// Gets all the pieces of a given color
-        /// </summary>
-        /// <param name="aColor">The color of the pieces to fetch</param>
-        /// <returns>A list of pieces</returns>
         public List<(int, int)> GetAllPiecesCoordinates(ColorEnum aColor)
         {
             List<(int, int)> sPieces = new List<(int, int)>();
@@ -403,39 +305,16 @@ namespace Chess
             return sPieces;
         }
 
-        /// <summary>
-        /// Orders a list of moves based on likelihood of being good
-        /// </summary>
-        /// <param name="aMovesList">The list of moves to order</param>
-        private void OrderMoves(List<Move> aMovesList)
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <summary>
-        /// Returns the column coordinate (a-f) from a given col index of the game array
-        /// </summary>
-        /// <param name="aCol">The index of the col</param>
-        /// <returns>The col coordinate</returns>
         public char GetColumnCoordinate(int aCol)
         {
             return (char)('a' + aCol);
         }
 
-        /// <summary>
-        /// Returns the row coordinate (1-8) from a given row index of the game array
-        /// </summary>
-        /// <param name="aRow">The index of the row</param>
-        /// <returns>The row coordinate</returns>
         public int GetRowCoordinate(int aRow)
         {
             return 8 - aRow;
         }
 
-        /// <summary>
-        /// Evaluates the board and returns a score, a positive number means white is winning, a negative number means black is winning
-        /// </summary>
-        /// <returns>A score of the board</returns>
         public (int Total, int Black, int White) EvaluateBoard()
         {
             int sBlack = 0;
@@ -467,9 +346,6 @@ namespace Chess
             return (sWhite - sBlack, sBlack, sWhite);
         }
 
-        /// <summary>
-        /// Minimax function
-        /// </summary>
         public (int BestEval, int RowFrom, int ColFrom, int RowTo, int ColTo) MiniMax(int aDepth, bool aIsMaximizingPlayer, out int aPosTried, int aAlpha = int.MinValue, int aBeta = int.MaxValue)
         {
             aPosTried = 0;
@@ -484,81 +360,45 @@ namespace Chess
 
             sValue = aIsMaximizingPlayer ? int.MinValue : int.MaxValue;
 
-            if (aIsMaximizingPlayer)
+            foreach(var sPos in GetAllPiecesCoordinates(aIsMaximizingPlayer ? ColorEnum.White : ColorEnum.Black))
             {
-                sValue = int.MinValue;
-
-                foreach(var sPos in GetAllPiecesCoordinates(ColorEnum.White))
+                for (int sRow = 0; sRow < 8; sRow++)
                 {
-                    for (int sRow = 0; sRow < 8; sRow++)
+                    for (int sCol = 0; sCol < 8; sCol++)
                     {
-                        for (int sCol = 0; sCol < 8; sCol++)
+                        if (!IsValidMove(sPos.Item1, sPos.Item2, sRow, sCol)) continue;
+
+                        aPosTried++;
+
+                        //Make move
+                        ChessPiece? sCapturedPiece = MakeMove(sPos.Item1, sPos.Item2, sRow, sCol);
+
+                        int sSubPosTried;
+                        var sNext = MiniMax(aDepth - 1, !aIsMaximizingPlayer, out sSubPosTried);
+                        aPosTried += sSubPosTried;
+
+                        //Undo move
+                        UndoMove(sPos.Item1, sPos.Item2, sRow, sCol, sCapturedPiece);
+
+                        if (aIsMaximizingPlayer ? sNext.BestEval > sValue : sNext.BestEval < sValue)
                         {
-                            if (!IsValidMove(sPos.Item1, sPos.Item2, sRow, sCol)) continue;
+                            sValue = sNext.BestEval;
+                            sBestRowFrom = sPos.Item1;
+                            sBestColFrom = sPos.Item2;
+                            sBestRowTo = sRow;
+                            sBestColTo = sCol;
+                        }
 
-                            aPosTried++;
-
-                            //Make move
-                            ChessPiece? sCapturedPiece = MakeMove(sPos.Item1, sPos.Item2, sRow, sCol);
-
-                            int sSubPosTried;
-                            var sNext = MiniMax(aDepth - 1, false, out sSubPosTried);
-                            aPosTried += sSubPosTried;
-
-                            //Undo move
-                            UndoMove(sPos.Item1, sPos.Item2, sRow, sCol, sCapturedPiece);
-
-                            if (sNext.BestEval > sValue)
-                            {
-                                sValue = sNext.BestEval;
-                                sBestRowFrom = sPos.Item1;
-                                sBestColFrom = sPos.Item2;
-                                sBestRowTo = sRow;
-                                sBestColTo = sCol;
-                            }
-
+                        if (aIsMaximizingPlayer)
+                        {
                             aAlpha = Math.Max(aAlpha, sValue);
-                            if (aBeta <= aAlpha) break; // Beta cutoff
                         }
-                    }
-                }
-            }
-            else
-            {
-                sValue = int.MaxValue;
-
-                foreach (var sPos in GetAllPiecesCoordinates(ColorEnum.Black))
-                {
-                    for (int sRow = 0; sRow < 8; sRow++)
-                    {
-                        for (int sCol = 0; sCol < 8; sCol++)
+                        else
                         {
-                            if (!IsValidMove(sPos.Item1, sPos.Item2, sRow, sCol)) continue;
-
-                            aPosTried++;
-
-                            //Make move
-                            ChessPiece? sCapturedPiece = MakeMove(sPos.Item1, sPos.Item2, sRow, sCol);
-
-                            int sSubPosTried;
-                            var sNext = MiniMax(aDepth - 1, true, out sSubPosTried);
-                            aPosTried += sSubPosTried;
-
-                            //Undo move
-                            UndoMove(sPos.Item1, sPos.Item2, sRow, sCol, sCapturedPiece);
-
-                            if (sNext.BestEval < sValue)
-                            {
-                                sValue = sNext.BestEval;
-                                sBestRowFrom = sPos.Item1;
-                                sBestColFrom = sPos.Item2;
-                                sBestRowTo = sRow;
-                                sBestColTo = sCol;
-                            }
-
                             aBeta = Math.Min(aBeta, sValue);
-                            if (aBeta <= aAlpha) break; // Alpha cutoff
                         }
+
+                        if (aBeta <= aAlpha) break; // Alpha cutoff
                     }
                 }
             }
@@ -566,14 +406,6 @@ namespace Chess
             return (sValue, sBestRowFrom, sBestColFrom, sBestRowTo, sBestColTo);
         }
 
-        /// <summary>
-        /// Helper method that makes a move, and returns the captured piece (null if none)
-        /// </summary>
-        /// <param name="aRowFrom">The row to move from</param>
-        /// <param name="aColFrom">The col to move from</param>
-        /// <param name="aRowTo">The row to move to</param>
-        /// <param name="aColTo">The col to move to</param>
-        /// <returns>The piece captured</returns>
         private ChessPiece? MakeMove(int aRowFrom, int aColFrom, int aRowTo, int aColTo)
         {
             ChessPiece? sCapturedPiece = mChessBoard[aRowTo, aColTo];
@@ -582,14 +414,6 @@ namespace Chess
             return sCapturedPiece;
         }
 
-        /// <summary>
-        /// Helper method to undo a move
-        /// </summary>
-        /// <param name="aRowFrom">The row to move from</param>
-        /// <param name="aColFrom">The col to move from</param>
-        /// <param name="aRowTo">The row to move to</param>
-        /// <param name="aColTo">The col to move to</param>
-        /// <param name="aCapturedPiece">The captured piece to return</param>
         private void UndoMove(int aRowFrom, int aColFrom, int aRowTo, int aColTo, ChessPiece? aCapturedPiece)
         {
             mChessBoard[aRowFrom, aColFrom] = mChessBoard[aRowTo, aColTo];

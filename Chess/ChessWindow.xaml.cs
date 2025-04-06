@@ -438,7 +438,7 @@ namespace Chess
             sStopWatch.Start();
 
             //Use the minimax algorithm
-            var sBestMove = mChessGame.MiniMax(3, false, out sPositionsTried);
+            var sBestMove = mChessGame.MiniMax(4, false, out sPositionsTried);
 
             sStopWatch.Stop();
             Console.WriteLine($"Tried {sPositionsTried} in {sStopWatch.ElapsedMilliseconds}ms");
