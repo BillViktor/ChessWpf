@@ -1,5 +1,8 @@
 ﻿namespace Chess.Models
 {
+    /// <summary>
+    /// Class that represents a move in chess.
+    /// </summary>
     public class Move
     {
         public ChessPiece PieceToMove { get; set; }
@@ -48,7 +51,18 @@
                 MoveType = MoveTypeEnum.EnPassant;
             }
 
-            //Castling (TODO)
+            //Castling
+            else if(PieceToMove is King && Math.Abs(ToCol - FromCol) == 2)
+            {
+                if (ToCol > FromCol)
+                {
+                    MoveType = MoveTypeEnum.CastlingKingSide;
+                }
+                else
+                {
+                    MoveType = MoveTypeEnum.CastlingQueenSide;
+                }
+            }
         }
     }
 }

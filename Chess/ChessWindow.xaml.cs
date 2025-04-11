@@ -34,12 +34,6 @@ namespace Chess
 
             mSinglePlayer = aSinglePlayer;
 
-            //If not single player, hide the evaluation bar
-            if (!aSinglePlayer)
-            {
-                EvaluationGrid.Width = 0;
-            }
-
             if (aTimerTimeSpan != null)
             {
                 mTimerTimeSpan = aTimerTimeSpan;
@@ -328,6 +322,18 @@ namespace Chess
                 sPieceCaptured = aMove.MoveType == MoveTypeEnum.Capture;
             }
 
+            //Handle castling
+            if(aMove.MoveType == MoveTypeEnum.CastlingQueenSide)
+            {
+                mChessGame.ChessBoard[aMove.ToRow, 3] = mChessGame.ChessBoard[aMove.ToRow, 0]; // Move rook
+                mChessGame.ChessBoard[aMove.ToRow, 0] = null;
+            }
+            else if(aMove.MoveType == MoveTypeEnum.CastlingKingSide)
+            {
+                mChessGame.ChessBoard[aMove.ToRow, 5] = mChessGame.ChessBoard[aMove.ToRow, 7]; // Move rook
+                mChessGame.ChessBoard[aMove.ToRow, 7] = null;
+            }
+
             mChessGame.ChessBoard[aMove.FromRow, aMove.FromCol] = null;
             mChessGame.ChessBoard[aMove.ToRow, aMove.ToCol] = mChessGame.SelectedPiece;
 
@@ -365,6 +371,7 @@ namespace Chess
 
             //Increment the move count
             mChessGame.CurrentMove++;
+            aMove.PieceToMove.MoveCount++;
 
             //Toggle the color to move
             mChessGame.ColorToMove = mChessGame.ColorToMove == ColorEnum.White ? ColorEnum.Black : ColorEnum.White;
@@ -411,10 +418,7 @@ namespace Chess
             mChessGame.SelectedPiece = null;
 
             //Update eval bar
-            if(mSinglePlayer)
-            {
-                UpdateEvalBar();
-            }
+            UpdateEvalBar();
 
             //Change the timer
             if (mTimerTimeSpan != null)
@@ -437,6 +441,11 @@ namespace Chess
             }
         }
 
+        /// <summary>
+        /// Moves the selected piece to the given row and col
+        /// </summary>
+        /// <param name="aRow"></param>
+        /// <param name="aCol"></param>
         private void MovePiece(int aRow, int aCol)
         {
             int sRowFrom, sColFrom;
@@ -518,31 +527,44 @@ namespace Chess
         /// <summary>
         /// Adds a move to the list of moves
         /// </summary>
-        /// <param name="aChessPiece">The piece that moved</param>
-        /// <param name="aRowFrom">The row the piece moved from</param>
-        /// <param name="aColFrom">The col the piece moved from</param>
-        /// <param name="aRowTo">The row the piece moved to</param>
-        /// <param name="aColTo">The row the piece moved to</param>
-        /// <param name="aTake">Did the moved piece capture a piece</param>
+        /// <param name="aMove">The move made</param>
         /// <param name="aCheck">Did the move result in a check?</param>
         /// <param name="aPromotion">Did the move result in a promotion? (pawns only)</param>
-            //TODO, castling kingside & queen side
-            //TODO, checkmate need to end with #
         private void AddMoveToList(Move aMove, bool aCheck, string aPromotion = "")
         {
-            if ((mChessGame.CurrentMove + 1) % 2 == 1)
+            string sMoveNumber = $"{(mChessGame.CurrentMove + 1) / 2}.";
+
+            string sMoveText = "";
+
+            if(aMove.MoveType == MoveTypeEnum.CastlingKingSide)
             {
-                //White
-                string sText = string.Format("{0, -4} {1, -8}", $"{(mChessGame.CurrentMove + 1) / 2}.", $"{(aMove.PieceToMove is Pawn && aMove.PieceCaptured != null ? mChessGame.GetColumnCoordinate(aMove.FromCol) : "")}{aMove.PieceToMove.Abbreviation}{(aMove.PieceCaptured != null ? "x" : "")}{mChessGame.GetColumnCoordinate(aMove.ToCol)}{mChessGame.GetRowCoordinate(aMove.ToRow)}{aPromotion}{(aCheck ? "+" : "")}{(aMove.MoveType == MoveTypeEnum.EnPassant ? " e.p" : "")}");
-                Moves.Items.Add(sText);
+                sMoveText = "O-O";
+            }
+            else if(aMove.MoveType == MoveTypeEnum.CastlingQueenSide)
+            {
+                sMoveText = "O-O-O";
             }
             else
             {
-                //Black
-                string sText = Moves.Items[Moves.Items.Count - 1].ToString();
-                Moves.Items.RemoveAt(Moves.Items.Count - 1);
-                sText = sText + $" {(aMove.PieceToMove is Pawn && aMove.PieceCaptured != null ? mChessGame.GetColumnCoordinate(aMove.FromCol) : "")}{aMove.PieceToMove.Abbreviation}{(aMove.PieceCaptured != null ? "x" : "")}{mChessGame.GetColumnCoordinate(aMove.ToCol)}{mChessGame.GetRowCoordinate(aMove.ToRow)}{aPromotion}{(aCheck ? "+" : "")}{(aMove.MoveType == MoveTypeEnum.EnPassant ? " e.p" : "")}";
-                Moves.Items.Add(sText);
+                bool sIsPawnCapture = aMove.PieceToMove is Pawn && aMove.PieceCaptured != null;
+                string sFromFile = sIsPawnCapture ? $"{mChessGame.GetColumnCoordinate(aMove.FromCol)}" : "";
+                string sCapture = aMove.PieceCaptured != null ? "x" : "";
+                string sToSquare = $"{mChessGame.GetColumnCoordinate(aMove.ToCol)}{mChessGame.GetRowCoordinate(aMove.ToRow)}";
+                string sCheck = aCheck ? "+" : "";
+                string sEnPassant = aMove.MoveType == MoveTypeEnum.EnPassant ? " e.p" : "";
+
+                sMoveText = $"{sFromFile}{aMove.PieceToMove.Abbreviation}{sCapture}{sToSquare}{aPromotion}{sCheck}{sEnPassant}";
+            }
+
+            if (aMove.PieceToMove.Color == ColorEnum.White)
+            {
+                string fullMove = string.Format("{0, -4} {1, -8}", sMoveNumber, sMoveText);
+                Moves.Items.Add(fullMove);
+            }
+            else
+            {
+                string previous = Moves.Items[Moves.Items.Count - 1].ToString();
+                Moves.Items[Moves.Items.Count - 1] = $"{previous} {sMoveText}";
             }
         }
         #endregion

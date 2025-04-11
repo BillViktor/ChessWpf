@@ -1,9 +1,5 @@
-Special Moves:
-- Castling
-- En Passant
-
-Misc:
 - Vid en spelare, kunna välja färg
-- Lägg till en robot på single player (minimax)
 - Kunna välja timer
-- Three 
+- Castling, man får inte vara i schack på platserna kungen "passerar"
+- Göra Minimax snabbare
+- Dokumentera
