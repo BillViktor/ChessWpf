@@ -298,23 +298,17 @@ namespace Chess
         }
 
         /// <summary>
-        /// Moves the selected piece to the given row & col
+        /// Makes the move
         /// </summary>
         /// <param name="aRowTo">The row to move the piece to</param>
         /// <param name="aColTo">The col to move the piece to</param>
-        private void MovePiece(int aRowTo, int aColTo)
+        private void MovePiece(Move aMove)
         {
             //Keep track if a piece was captured
             bool sPieceCaptured = false;
 
-            //Get the position of the selected piece
-            int sRowFrom = -1;
-            int sColFrom = -1;
-
-            GetPositionForPiece(out sRowFrom, out sColFrom);
-
             //Make sure the move is valid
-            if (!mChessGame.IsValidMove(sRowFrom, sColFrom, aRowTo, aColTo))
+            if (!mChessGame.IsValidMove(aMove.FromRow, aMove.FromCol, aMove.ToRow, aMove.ToCol))
             {
                 PlaySound("illegal-move.wav");
                 ClearHighLights(false);
@@ -322,9 +316,20 @@ namespace Chess
                 return;
             }
 
-            sPieceCaptured = mChessGame.ChessBoard[aRowTo, aColTo] != null;
-            mChessGame.ChessBoard[sRowFrom, sColFrom] = null;
-            mChessGame.ChessBoard[aRowTo, aColTo] = mChessGame.SelectedPiece;
+            // Handle en passant
+            if(aMove.MoveType == MoveTypeEnum.EnPassant)
+            {
+                int sCapturedPawnRow = aMove.FromRow;
+                mChessGame.ChessBoard[sCapturedPawnRow, aMove.ToCol] = null;
+                sPieceCaptured = true;
+            }
+            else
+            {
+                sPieceCaptured = aMove.MoveType == MoveTypeEnum.Capture;
+            }
+
+            mChessGame.ChessBoard[aMove.FromRow, aMove.FromCol] = null;
+            mChessGame.ChessBoard[aMove.ToRow, aMove.ToCol] = mChessGame.SelectedPiece;
 
             RefreshBoard();
 
@@ -340,22 +345,22 @@ namespace Chess
             //Check if pawn promotion
             string sPromotion = "";
 
-            if (mChessGame.SelectedPiece is Pawn && ((mChessGame.ColorToMove == ColorEnum.White && aRowTo == 0) || (mChessGame.ColorToMove == ColorEnum.Black && aRowTo == 7)))
+            if(aMove.MoveType == MoveTypeEnum.Promotion)
             {
-                if(mSinglePlayer && mChessGame.ColorToMove == ColorEnum.Black)
+                if (mSinglePlayer && mChessGame.ColorToMove == ColorEnum.Black)
                 {
-                    mChessGame.ChessBoard[aRowTo, aColTo] = new Queen(ColorEnum.Black);
+                    mChessGame.ChessBoard[aMove.ToRow, aMove.ToCol] = new Queen(ColorEnum.Black);
                 }
                 else
                 {
                     PawnPromotion sPawnPromotion = new PawnPromotion(mChessGame.ColorToMove);
                     sPawnPromotion.ShowDialog();
 
-                    mChessGame.ChessBoard[aRowTo, aColTo] = sPawnPromotion.SelectedPromotionPiece;
+                    mChessGame.ChessBoard[aMove.ToRow, aMove.ToCol] = sPawnPromotion.SelectedPromotionPiece;
                 }
                 RefreshBoard();
                 PlaySound("promotion.wav");
-                sPromotion = $"={mChessGame.ChessBoard[aRowTo, aColTo].Abbreviation}";
+                sPromotion = $"={mChessGame.ChessBoard[aMove.ToRow, aMove.ToCol].Abbreviation}";
             }
 
             //Increment the move count
@@ -368,8 +373,8 @@ namespace Chess
             ClearHighLights();
 
             //Highlight the move made
-            HighlightCell(sRowFrom, sColFrom, Colors.Yellow, "LastMove");
-            HighlightCell(aRowTo, aColTo, Colors.Yellow, "LastMove");
+            HighlightCell(aMove.FromRow, aMove.FromCol, Colors.Yellow, "LastMove");
+            HighlightCell(aMove.ToRow, aMove.ToCol, Colors.Yellow, "LastMove");
 
             //Check if it resulted in a check
             bool sCheck = mChessGame.IsKingInCheck(mChessGame.ColorToMove);
@@ -398,7 +403,10 @@ namespace Chess
             }
 
             //Add move to list
-            AddMoveToList(mChessGame.SelectedPiece, sRowFrom, sColFrom, aRowTo, aColTo, sPieceCaptured, sCheck, sPromotion);
+            AddMoveToList(aMove, sCheck, sPromotion);
+
+            //Set last move
+            mChessGame.LastMove = aMove;
 
             mChessGame.SelectedPiece = null;
 
@@ -429,6 +437,14 @@ namespace Chess
             }
         }
 
+        private void MovePiece(int aRow, int aCol)
+        {
+            int sRowFrom, sColFrom;
+            GetPositionForPiece(out sRowFrom, out sColFrom);
+            Move sMove = new Move(mChessGame.SelectedPiece, sRowFrom, sColFrom, aRow, aCol, mChessGame.ChessBoard[aRow, aCol]);
+            MovePiece(sMove);
+        }
+
         /// <summary>
         /// Makes a move for the computer
         /// </summary>
@@ -449,7 +465,7 @@ namespace Chess
             if (sBestMove.BestMove != null)
             {
                 mChessGame.SelectedPiece = mChessGame.ChessBoard[sBestMove.BestMove.FromRow, sBestMove.BestMove.FromCol];
-                MovePiece(sBestMove.BestMove.ToRow, sBestMove.BestMove.ToCol);
+                MovePiece(sBestMove.BestMove);
             }
         }
 
@@ -512,12 +528,12 @@ namespace Chess
         /// <param name="aPromotion">Did the move result in a promotion? (pawns only)</param>
             //TODO, castling kingside & queen side
             //TODO, checkmate need to end with #
-        private void AddMoveToList(ChessPiece aChessPiece, int aRowFrom, int aColFrom, int aRowTo, int aColTo, bool aTake, bool aCheck, string aPromotion = "")
+        private void AddMoveToList(Move aMove, bool aCheck, string aPromotion = "")
         {
             if ((mChessGame.CurrentMove + 1) % 2 == 1)
             {
                 //White
-                string sText = string.Format("{0, -4} {1, -8}", $"{(mChessGame.CurrentMove + 1) / 2}.", $"{(aChessPiece is Pawn && aTake ? mChessGame.GetColumnCoordinate(aColFrom) : "")}{aChessPiece.Abbreviation}{(aTake ? "x" : "")}{mChessGame.GetColumnCoordinate(aColTo)}{mChessGame.GetRowCoordinate(aRowTo)}{aPromotion}{(aCheck ? "+" : "")}");
+                string sText = string.Format("{0, -4} {1, -8}", $"{(mChessGame.CurrentMove + 1) / 2}.", $"{(aMove.PieceToMove is Pawn && aMove.PieceCaptured != null ? mChessGame.GetColumnCoordinate(aMove.FromCol) : "")}{aMove.PieceToMove.Abbreviation}{(aMove.PieceCaptured != null ? "x" : "")}{mChessGame.GetColumnCoordinate(aMove.ToCol)}{mChessGame.GetRowCoordinate(aMove.ToRow)}{aPromotion}{(aCheck ? "+" : "")}{(aMove.MoveType == MoveTypeEnum.EnPassant ? " e.p" : "")}");
                 Moves.Items.Add(sText);
             }
             else
@@ -525,7 +541,7 @@ namespace Chess
                 //Black
                 string sText = Moves.Items[Moves.Items.Count - 1].ToString();
                 Moves.Items.RemoveAt(Moves.Items.Count - 1);
-                sText = sText + $" {(aChessPiece is Pawn && aTake ? mChessGame.GetColumnCoordinate(aColFrom) : "")}{aChessPiece.Abbreviation}{(aTake ? "x" : "")}{mChessGame.GetColumnCoordinate(aColTo)}{mChessGame.GetRowCoordinate(aRowTo)}{aPromotion}{(aCheck ? "+" : "")}";
+                sText = sText + $" {(aMove.PieceToMove is Pawn && aMove.PieceCaptured != null ? mChessGame.GetColumnCoordinate(aMove.FromCol) : "")}{aMove.PieceToMove.Abbreviation}{(aMove.PieceCaptured != null ? "x" : "")}{mChessGame.GetColumnCoordinate(aMove.ToCol)}{mChessGame.GetRowCoordinate(aMove.ToRow)}{aPromotion}{(aCheck ? "+" : "")}{(aMove.MoveType == MoveTypeEnum.EnPassant ? " e.p" : "")}";
                 Moves.Items.Add(sText);
             }
         }

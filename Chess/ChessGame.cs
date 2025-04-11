@@ -184,13 +184,33 @@ namespace Chess
 
             foreach (var (sRow, sCol) in sOtherColoredPieces)
             {
-                if (IsValidMove(sRow, sCol, sKingPos.Row, sKingPos.Col))
+                if (CanAttackSquare(sRow, sCol, sKingPos.Row, sKingPos.Col))
                 {
                     return true;
                 }
             }
 
             return false;
+        }
+
+        private bool CanAttackSquare(int aFromRow, int aFromCol, int aToRow, int aToCol)
+        {
+            ChessPiece? piece = mChessBoard[aFromRow, aFromCol];
+            if (piece == null) return false;
+
+            ChessPiece? target = mChessBoard[aToRow, aToCol];
+            if (target?.Color == piece.Color) return false;
+
+            return piece switch
+            {
+                Pawn sPawn => IsValidPawnMove(aFromRow, aFromCol, aToRow, aToCol, sPawn),
+                King sKing => IsValidKingMove(aFromRow, aFromCol, aToRow, aToCol),
+                Rook sRook => IsValidRookMove(aFromRow, aFromCol, aToRow, aToCol),
+                Knight sKnight => IsValidKnightMove(aFromRow, aFromCol, aToRow, aToCol),
+                Queen sQueen => IsValidQueenMove(aFromRow, aFromCol, aToRow, aToCol),
+                Bishop sBishop => IsValidBishopMove(aFromRow, aFromCol, aToRow, aToCol),
+                _ => false
+            };
         }
 
         public bool IsKingInCheckmate(ColorEnum aColor)
@@ -213,7 +233,7 @@ namespace Chess
                     for (int sCol = 0; sCol < 8; sCol++)
                     {
                         //Check if the chess piece can move there
-                        if (IsValidMove(sRowPiece, sColPiece, sRow, sCol))
+                        if (CanAttackSquare(sRowPiece, sColPiece, sRow, sCol))
                         {
                             Move sMove = new Move(sChessPiece, sRowPiece, sColPiece, sRow, sCol, mChessBoard[sRow, sCol]);
 
@@ -430,8 +450,7 @@ namespace Chess
                     sMove.Score = 10 * sMove.PieceCaptured.Value - sMove.PieceToMove.Value;
                 }
 
-                //Promotion is good
-                if(sMove.PieceToMove is Pawn && (sMove.ToRow == 0 || sMove.ToRow == 7))
+                if(sMove.MoveType == MoveTypeEnum.Promotion)
                 {
                     sMove.Score += 900;
                 }
