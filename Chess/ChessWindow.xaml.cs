@@ -59,10 +59,10 @@ namespace Chess
         private void UpdateEvalBar()
         {
             //Get the eval
-            var sEval = mChessGame.EvaluateBoard();
+            var sEval = mChessGame.GetEvaluation();
 
             // Convert to 0.0 to 1.0: -10 = 0 (white losing), +10 = 1 (white winning)
-            double sWhitePortion = ((double)sEval.White / sEval.Total);
+            double sWhitePortion = ((double)sEval.White / (sEval.White - sEval.Black));
             double sBlackPortion = 1.0 - sWhitePortion;
 
             // Assign correctly: bottom is white, top is black
@@ -242,18 +242,14 @@ namespace Chess
         /// Highlights valid moves for the selected piece
         /// </summary>
         /// <param name="aRowFrom">The row of the chess piece</param>
-        /// <param name="aColTo">The col of the chess piece</param>
-        private void HighlightValidMoves(int aRowFrom, int aColTo)
+        /// <param name="aColFrom">The col of the chess piece</param>
+        private void HighlightValidMoves(int aRowFrom, int aColFrom)
         {
-            for (int sRow = 0; sRow < 8; sRow++)
+            List<Move> sMoves = mChessGame.GetMovesForPiece(aRowFrom, aColFrom);
+
+            foreach(Move sMove in sMoves)
             {
-                for (int sCol = 0; sCol < 8; sCol++)
-                {
-                    if (mChessGame.IsValidMove(aRowFrom, aColTo, sRow, sCol))
-                    {
-                        HighlightCell(sRow, sCol, Colors.LightBlue, "ValidMove");
-                    }
-                }
+                HighlightCell(sMove.ToRow, sMove.ToCol, Colors.LightBlue, "ValidMove");
             }
         }
 
@@ -346,18 +342,26 @@ namespace Chess
 
             if (mChessGame.SelectedPiece is Pawn && ((mChessGame.ColorToMove == ColorEnum.White && aRowTo == 0) || (mChessGame.ColorToMove == ColorEnum.Black && aRowTo == 7)))
             {
-                PawnPromotion sPawnPromotion = new PawnPromotion(mChessGame.ColorToMove);
-                sPawnPromotion.ShowDialog();
+                if(mSinglePlayer && mChessGame.ColorToMove == ColorEnum.Black)
+                {
+                    mChessGame.ChessBoard[aRowTo, aColTo] = new Queen(ColorEnum.Black);
+                }
+                else
+                {
+                    PawnPromotion sPawnPromotion = new PawnPromotion(mChessGame.ColorToMove);
+                    sPawnPromotion.ShowDialog();
 
-                mChessGame.ChessBoard[aRowTo, aColTo] = sPawnPromotion.SelectedPromotionPiece;
+                    mChessGame.ChessBoard[aRowTo, aColTo] = sPawnPromotion.SelectedPromotionPiece;
+                }
                 RefreshBoard();
                 PlaySound("promotion.wav");
-                sPromotion = $"={sPawnPromotion.SelectedPromotionPiece.Abbreviation}";
+                sPromotion = $"={mChessGame.ChessBoard[aRowTo, aColTo].Abbreviation}";
             }
 
             //Increment the move count
             mChessGame.CurrentMove++;
 
+            //Toggle the color to move
             mChessGame.ColorToMove = mChessGame.ColorToMove == ColorEnum.White ? ColorEnum.Black : ColorEnum.White;
 
             //Clear the old highlights
@@ -381,11 +385,9 @@ namespace Chess
                 else
                 {
                     PlaySound("check.wav");
-                    int sRow = -1;
-                    int sCol = -1;
 
                     var sKingPos = mChessGame.GetKingPosition(mChessGame.ColorToMove);
-                    HighlightCell(sKingPos.aRow, sKingPos.aCol, Colors.Red, "Check");
+                    HighlightCell(sKingPos.Row, sKingPos.Col, Colors.Red, "Check");
                 }
             }
             else if (mChessGame.IsStalemate(mChessGame.ColorToMove))
@@ -423,7 +425,7 @@ namespace Chess
 
             if(mSinglePlayer && mChessGame.ColorToMove == ColorEnum.Black)
             {
-                ComputerMove();
+                Dispatcher.InvokeAsync(() => ComputerMove(), DispatcherPriority.Background);
             }
         }
 
@@ -444,10 +446,10 @@ namespace Chess
             Console.WriteLine($"Tried {sPositionsTried} in {sStopWatch.ElapsedMilliseconds}ms");
 
             //Make the move
-            if (sBestMove.RowFrom != -1 && sBestMove.ColFrom != -1 && sBestMove.RowTo != -1 && sBestMove.ColTo != -1)
+            if (sBestMove.BestMove != null)
             {
-                mChessGame.SelectedPiece = mChessGame.ChessBoard[sBestMove.RowFrom, sBestMove.ColFrom];
-                MovePiece(sBestMove.RowTo, sBestMove.ColTo);
+                mChessGame.SelectedPiece = mChessGame.ChessBoard[sBestMove.BestMove.FromRow, sBestMove.BestMove.FromCol];
+                MovePiece(sBestMove.BestMove.ToRow, sBestMove.BestMove.ToCol);
             }
         }
 

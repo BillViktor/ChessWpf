@@ -1,4 +1,5 @@
 ﻿using Chess.Models;
+using System.DirectoryServices.ActiveDirectory;
 using System.Windows.Shapes;
 
 namespace Chess
@@ -22,6 +23,7 @@ namespace Chess
         private List<Rectangle> mHighLightedCells = new List<Rectangle>();
         private ChessPiece? mSelectedPiece = null;
         private int mCurrentMove = 1;
+        private Move mLastMove;
 
         //Properties
         public ChessPiece?[,] ChessBoard { get => mChessBoard; set => mChessBoard = value; }
@@ -29,63 +31,36 @@ namespace Chess
         public List<Rectangle> HighLightedCells { get => mHighLightedCells; set => mHighLightedCells = value; }
         public ChessPiece? SelectedPiece { get => mSelectedPiece; set => mSelectedPiece = value; }
         public int CurrentMove { get => mCurrentMove; set => mCurrentMove = value; }
+        public Move LastMove { get => mLastMove; set => mLastMove = value; }
 
 
-        #region Movement Validation
         public bool IsValidMove(int aRowFrom, int aColFrom, int aRowTo, int aColTo)
         {
-            ChessPiece? sChessPiece = mChessBoard[aRowFrom, aColFrom];
+            ChessPiece? sPieceToMove = mChessBoard[aRowFrom, aColFrom];
+            if (sPieceToMove == null) return false;
 
-            if (sChessPiece == null) return false;
+            ChessPiece? sPieceToCapture = mChessBoard[aRowTo, aColTo];
+            if (sPieceToCapture?.Color == sPieceToMove.Color || sPieceToCapture is King) return false;
 
-            if (mChessBoard[aRowFrom, aColFrom] != null && mChessBoard[aRowTo, aColTo]?.Color == sChessPiece.Color)
+            bool sValidMove = sPieceToMove switch
             {
-                return false;
-            }
+                Pawn sPawn => IsValidPawnMove(aRowFrom, aColFrom, aRowTo, aColTo, sPawn),
+                King sKing => IsValidKingMove(aRowFrom, aColFrom, aRowTo, aColTo),
+                Rook sRook => IsValidRookMove(aRowFrom, aColFrom, aRowTo, aColTo),
+                Knight sKnight => IsValidKnightMove(aRowFrom, aColFrom, aRowTo, aColTo),
+                Queen sQueen => IsValidQueenMove(aRowFrom, aColFrom, aRowTo, aColTo),
+                Bishop sBishop => IsValidBishopMove(aRowFrom, aColFrom, aRowTo, aColTo),
+                _ => false
+            };
 
-            bool sValidMove = false;
+            if (!sValidMove) return false;
 
-            switch (sChessPiece)
-            {
-                case Pawn sPawn:
-                    sValidMove = IsValidPawnMove(aRowFrom, aColFrom, aRowTo, aColTo, sPawn);
-                    break;
-                case King sKing:
-                    sValidMove = IsValidKingMove(aRowFrom, aColFrom, aRowTo, aColTo);
-                    break;
-                case Rook sRook:
-                    sValidMove = IsValidRookMove(aRowFrom, aColFrom, aRowTo, aColTo);
-                    break;
-                case Knight sKnight:
-                    sValidMove = IsValidKnightMove(aRowFrom, aColFrom, aRowTo, aColTo);
-                    break;
-                case Queen sQueen:
-                    sValidMove = IsValidQueenMove(aRowFrom, aColFrom, aRowTo, aColTo);
-                    break;
-                case Bishop sBishop:
-                    sValidMove = IsValidBishopMove(aRowFrom, aColFrom, aRowTo, aColTo);
-                    break;
-                default:
-                    return false;
-            }
+            Move sMove = new Move(sPieceToMove, aRowFrom, aColFrom, aRowTo, aColTo, sPieceToCapture);
+            MakeMove(sMove);
+            bool sInCheck = IsKingInCheck(sPieceToMove.Color);
+            UndoMove(sMove);
 
-            if (!sValidMove)
-            {
-                return false;
-            }
-            else
-            {
-                //Simulate the move
-                ChessPiece? sCapturedPiece = MakeMove(aRowFrom, aColFrom, aRowTo, aColTo);
-
-                //Check if we're still in check
-                bool sInCheck = IsKingInCheck(sChessPiece.Color);
-
-                //Undo the move
-                UndoMove(aRowFrom, aColFrom, aRowTo, aColTo, sCapturedPiece);
-
-                return !sInCheck;
-            }
+            return !sInCheck;
         }
 
         private bool IsPathClear(int aRowFrom, int aColFrom, int aRowTo, int aColTo)
@@ -158,6 +133,22 @@ namespace Chess
                 return true;
             }
 
+            //En Passant
+            if (Math.Abs(aColTo - aColFrom) == 1 && aRowTo == aRowFrom + sDirection)
+            {
+                if (mLastMove != null && mLastMove.PieceToMove is Pawn sLastMovedPawn && sLastMovedPawn.Color != mColorToMove)
+                {
+                    // Last move was a 2-square pawn advance
+                    int sFromRow = (sLastMovedPawn.Color == ColorEnum.White) ? 6 : 1;
+                    int sToRow = sFromRow + 2 * ((sLastMovedPawn.Color == ColorEnum.White) ? -1 : 1);
+
+                    if (mLastMove.FromRow == sFromRow && mLastMove.ToRow == sToRow && mLastMove.ToCol == aColTo && mLastMove.ToRow == aRowFrom)
+                    {
+                        return true;
+                    }
+                }
+            }
+
             return false;
         }
 
@@ -165,11 +156,10 @@ namespace Chess
         {
             return Math.Abs(aRowFrom - aRowTo) <= 1 && Math.Abs(aColFrom - aColTo) <= 1;
         }
-        #endregion
 
 
         #region Helpers
-        public (int aRow, int aCol) GetKingPosition(ColorEnum aColor)
+        public (int Row, int Col) GetKingPosition(ColorEnum aColor)
         {
             for (int sRow = 0; sRow < 8; sRow++)
             {
@@ -190,20 +180,11 @@ namespace Chess
             //Find the king
             var sKingPos = GetKingPosition(aColor);
 
-            int sRowKing = sKingPos.aRow;
-            int sColKing = sKingPos.aCol;
-
-            //If the king is not found, it's been taken in a simulated move!
-            if (sRowKing == -1 && sColKing == -1)
-            {
-                return true;
-            }
-
             List<(int, int)> sOtherColoredPieces = GetAllPiecesCoordinates(aColor == ColorEnum.White ? ColorEnum.Black : ColorEnum.White);
 
             foreach (var (sRow, sCol) in sOtherColoredPieces)
             {
-                if (IsValidMove(sRow, sCol, sRowKing, sColKing))
+                if (IsValidMove(sRow, sCol, sKingPos.Row, sKingPos.Col))
                 {
                     return true;
                 }
@@ -234,14 +215,16 @@ namespace Chess
                         //Check if the chess piece can move there
                         if (IsValidMove(sRowPiece, sColPiece, sRow, sCol))
                         {
+                            Move sMove = new Move(sChessPiece, sRowPiece, sColPiece, sRow, sCol, mChessBoard[sRow, sCol]);
+
                             //It could, simulate the move & check if we're still in check
-                            ChessPiece? sCapturedPiece = MakeMove(sRowPiece, sColPiece, sRow, sCol);
+                            MakeMove(sMove);
 
                             //Check if we're still in check
                             bool sStillInCheck = IsKingInCheck(aColor);
 
                             //Undo the move
-                            UndoMove(sRowPiece, sColPiece, sRow, sCol, sCapturedPiece);
+                            UndoMove(sMove);
 
                             if (!sStillInCheck)
                             {
@@ -315,109 +298,158 @@ namespace Chess
             return 8 - aRow;
         }
 
-        public (int Total, int Black, int White) EvaluateBoard()
+        public int EvaluateBoard()
         {
-            int sBlack = 0;
-            int sWhite = 0;
+            List<ChessPiece> sPieces = GetAllPieces();
 
-            if (IsKingInCheckmate(ColorEnum.White)) return (int.MinValue, 0, 0);
-            if(IsKingInCheckmate(ColorEnum.Black)) return (int.MaxValue, 0, 0);
-            if (IsStalemate(ColorEnum.White)) return (0, 0, 0);
-
-            for (int sRow = 0; sRow < 8; sRow++)
-            {
-                for (int sCol = 0; sCol < 8; sCol++)
-                {
-                    ChessPiece? sPiece = mChessBoard[sRow, sCol];
-                    if (sPiece != null)
-                    {
-                        if (sPiece.Color == ColorEnum.White)
-                        {
-                            sWhite += sPiece.Value;
-                        }
-                        else
-                        {
-                            sBlack += sPiece.Value;
-                        }
-                    }
-                }
-            }
-
-            return (sWhite - sBlack, sBlack, sWhite);
+            return sPieces.Sum(x => x.Value);
         }
 
-        public (int BestEval, int RowFrom, int ColFrom, int RowTo, int ColTo) MiniMax(int aDepth, bool aIsMaximizingPlayer, out int aPosTried, int aAlpha = int.MinValue, int aBeta = int.MaxValue)
+        public (int White, int Black) GetEvaluation()
+        {
+            List<ChessPiece> sPieces = GetAllPieces();
+
+            return (sPieces.Where(x => x.Color == ColorEnum.White).Sum(x => x.Value),
+                sPieces.Where(x => x.Color == ColorEnum.Black).Sum(x => x.Value));
+        }
+
+        public (int BestEval, Move BestMove) MiniMax(int aDepth, bool aIsMaximizingPlayer, out int aPosTried, int aAlpha = int.MinValue, int aBeta = int.MaxValue)
         {
             aPosTried = 0;
 
             if (aDepth == 0 || IsGameOver())
             {
-                return (EvaluateBoard().Total, -1, -1, -1, -1); // Include evaluation in return value
+                aPosTried = 1;
+                return (EvaluateBoard(), null); // Include evaluation in return value
             }
 
             int sValue;
-            int sBestRowFrom = -1, sBestColFrom = -1, sBestRowTo = -1, sBestColTo = -1;
+            Move sBestMove = null;
 
             sValue = aIsMaximizingPlayer ? int.MinValue : int.MaxValue;
 
-            foreach(var sPos in GetAllPiecesCoordinates(aIsMaximizingPlayer ? ColorEnum.White : ColorEnum.Black))
+            List<Move> sMoves = GetAllMoves(aIsMaximizingPlayer ? ColorEnum.White : ColorEnum.Black);
+            OrderMoves(sMoves);
+
+            foreach (Move sMove in sMoves)
             {
-                for (int sRow = 0; sRow < 8; sRow++)
+                MakeMove(sMove);
+
+                int sSubPosTried;
+                var sNext = MiniMax(aDepth - 1, !aIsMaximizingPlayer, out sSubPosTried);
+                aPosTried += sSubPosTried;
+
+                //Undo move
+                UndoMove(sMove);
+
+                if (aIsMaximizingPlayer ? sNext.BestEval > sValue : sNext.BestEval < sValue)
                 {
-                    for (int sCol = 0; sCol < 8; sCol++)
+                    sValue = sNext.BestEval;
+                    sBestMove = sMove;
+                }
+
+                if (aIsMaximizingPlayer)
+                {
+                    aAlpha = Math.Max(aAlpha, sValue);
+                }
+                else
+                {
+                    aBeta = Math.Min(aBeta, sValue);
+                }
+
+                if (aBeta <= aAlpha) break; // Alpha cutoff
+            }
+
+            return (sValue, sBestMove);
+        }
+
+        private List<Move> GetAllMoves(ColorEnum aColorEnum)
+        {
+            List<Move> sMoves = new List<Move>();
+
+            for (int sRow = 0; sRow < 8; sRow++)
+            {
+                for (int sCol = 0; sCol < 8; sCol++)
+                {
+                    if(mChessBoard[sRow, sCol]?.Color == aColorEnum)
                     {
-                        if (!IsValidMove(sPos.Item1, sPos.Item2, sRow, sCol)) continue;
-
-                        aPosTried++;
-
-                        //Make move
-                        ChessPiece? sCapturedPiece = MakeMove(sPos.Item1, sPos.Item2, sRow, sCol);
-
-                        int sSubPosTried;
-                        var sNext = MiniMax(aDepth - 1, !aIsMaximizingPlayer, out sSubPosTried);
-                        aPosTried += sSubPosTried;
-
-                        //Undo move
-                        UndoMove(sPos.Item1, sPos.Item2, sRow, sCol, sCapturedPiece);
-
-                        if (aIsMaximizingPlayer ? sNext.BestEval > sValue : sNext.BestEval < sValue)
-                        {
-                            sValue = sNext.BestEval;
-                            sBestRowFrom = sPos.Item1;
-                            sBestColFrom = sPos.Item2;
-                            sBestRowTo = sRow;
-                            sBestColTo = sCol;
-                        }
-
-                        if (aIsMaximizingPlayer)
-                        {
-                            aAlpha = Math.Max(aAlpha, sValue);
-                        }
-                        else
-                        {
-                            aBeta = Math.Min(aBeta, sValue);
-                        }
-
-                        if (aBeta <= aAlpha) break; // Alpha cutoff
+                        sMoves.AddRange(GetMovesForPiece(sRow, sCol));
                     }
                 }
             }
 
-            return (sValue, sBestRowFrom, sBestColFrom, sBestRowTo, sBestColTo);
+            return sMoves;
         }
 
-        private ChessPiece? MakeMove(int aRowFrom, int aColFrom, int aRowTo, int aColTo)
+        public List<Move> GetMovesForPiece(int aRow, int aCol)
         {
-            ChessPiece? sCapturedPiece = mChessBoard[aRowTo, aColTo];
-            mChessBoard[aRowTo, aColTo] = mChessBoard[aRowFrom, aColFrom];
-            mChessBoard[aRowFrom, aColFrom] = null;
-            return sCapturedPiece;
+            List<Move> sMoves = new List<Move>();
+
+            ChessPiece sPiece = mChessBoard[aRow, aCol];
+
+            for (int sRow = 0; sRow < 8; sRow++)
+            {
+                for (int sCol = 0; sCol < 8; sCol++)
+                {
+                    if(sRow == aRow && sCol == aCol) continue; // Skip the piece's current position
+
+                    if(IsValidMove(aRow, aCol, sRow, sCol))
+                    {
+                        Move sMove = new Move(sPiece, aRow, aCol, sRow, sCol, mChessBoard[sRow, sCol]);
+                        sMoves.Add(sMove);
+                    }
+                }
+            }
+
+            return sMoves;
         }
 
-        private void UndoMove(int aRowFrom, int aColFrom, int aRowTo, int aColTo, ChessPiece? aCapturedPiece)
+        private List<ChessPiece> GetAllPieces()
         {
-            mChessBoard[aRowFrom, aColFrom] = mChessBoard[aRowTo, aColTo];
-            mChessBoard[aRowTo, aColTo] = aCapturedPiece;
+            List<ChessPiece> sPieces = new List<ChessPiece>();
+            for (int sRow = 0; sRow < 8; sRow++)
+            {
+                for (int sCol = 0; sCol < 8; sCol++)
+                {
+                    if (mChessBoard[sRow, sCol] != null)
+                    {
+                        sPieces.Add(mChessBoard[sRow, sCol]);
+                    }
+                }
+            }
+            return sPieces;
+        }
+
+        private void OrderMoves(List<Move> aMovesList)
+        {
+            foreach(Move sMove in aMovesList)
+            {
+                //Capturing a piece is good
+                if(sMove.PieceCaptured != null)
+                {
+                    sMove.Score = 10 * sMove.PieceCaptured.Value - sMove.PieceToMove.Value;
+                }
+
+                //Promotion is good
+                if(sMove.PieceToMove is Pawn && (sMove.ToRow == 0 || sMove.ToRow == 7))
+                {
+                    sMove.Score += 900;
+                }
+            }
+
+            aMovesList.Sort((m1, m2) => m2.Score.CompareTo(m1.Score));
+        }
+
+        private void MakeMove(Move aMove)
+        {
+            mChessBoard[aMove.ToRow, aMove.ToCol] = aMove.PieceToMove;
+            mChessBoard[aMove.FromRow, aMove.FromCol] = null;
+        }
+
+        private void UndoMove(Move aMove)
+        {
+            mChessBoard[aMove.FromRow, aMove.FromCol] = mChessBoard[aMove.ToRow, aMove.ToCol];
+            mChessBoard[aMove.ToRow, aMove.ToCol] = aMove.PieceCaptured;
         }
         #endregion
     }
