@@ -1,5 +1,3 @@
-- Vid en spelare, kunna välja färg
-- Kunna välja timer
 - Castling, man får inte vara i schack på platserna kungen "passerar"
-- Göra Minimax snabbare
-- Dokumentera
+- Göra Minimax snabbare om det går...
+- Gör FEN strings bättre

@@ -14,12 +14,12 @@ namespace Chess
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class ChessWindow : Window
+    public partial class ChessWindow : Window, IDisposable
     {
         private ChessGame mChessGame = new ChessGame();
 
         //Settings
-        private TimeSpan? mTimerTimeSpan;
+        private TimerSetting mTimerSetting;
         private bool mSinglePlayer = false;
 
         private DispatcherTimer mTimerWhite;
@@ -28,23 +28,27 @@ namespace Chess
         private DispatcherTimer mTimerBlack;
         private TimeSpan mTimeBlack;
 
-        public ChessWindow(bool aSinglePlayer, TimeSpan? aTimerTimeSpan)
+        private ColorEnum mSinglePlayerColor = ColorEnum.White;
+
+        public ChessWindow(bool aSinglePlayer, TimerSetting aTimerSetting, ColorEnum aColor = ColorEnum.White)
         {
             InitializeComponent();
 
             mSinglePlayer = aSinglePlayer;
+            mSinglePlayerColor = aColor;
+            mTimerSetting = aTimerSetting;
 
-            if (aTimerTimeSpan != null)
-            {
-                mTimerTimeSpan = aTimerTimeSpan;
-                WhiteTimer.Text = aTimerTimeSpan.Value.ToString(@"mm\:ss");
-                BlackTimer.Text = aTimerTimeSpan.Value.ToString(@"mm\:ss");
-                InitializeTimer();
-            }
+            InitializeTimer();
 
             CreateChessBoard();
 
             PlaySound("game-start.wav");
+
+            //Should we start the computer?
+            if(aSinglePlayer && aColor == ColorEnum.Black)
+            {
+                Dispatcher.InvokeAsync(() => ComputerMove(), DispatcherPriority.Background);
+            }
         }
 
         /// <summary>
@@ -52,14 +56,31 @@ namespace Chess
         /// </summary>
         private void UpdateEvalBar()
         {
-            //Get the eval
             var sEval = mChessGame.GetEvaluation();
+            int sSum = Math.Abs(sEval.White - sEval.Black);
 
-            // Convert to 0.0 to 1.0: -10 = 0 (white losing), +10 = 1 (white winning)
-            double sWhitePortion = ((double)sEval.White / (sEval.White - sEval.Black));
-            double sBlackPortion = 1.0 - sWhitePortion;
+            double sWhitePortion = 0;
+            double sBlackPortion = 0;
 
-            // Assign correctly: bottom is white, top is black
+            if(sSum == 0)
+            {
+                sWhitePortion = 0.5;
+                sBlackPortion = 0.5;
+            }
+            else
+            {
+                sWhitePortion = (double)sEval.White / sSum;
+
+                //In end game the eval can be negative for white, we need to make sure its not negative
+                if (sWhitePortion < 0)
+                {
+                    sWhitePortion = 0;
+                }
+
+                sBlackPortion = 1 - sWhitePortion;
+            }
+
+            // Convert to relative "star" values — total always adds to 1.0
             WhiteEvalRow.Height = new GridLength(sWhitePortion, GridUnitType.Star);
             BlackEvalRow.Height = new GridLength(sBlackPortion, GridUnitType.Star);
         }
@@ -69,36 +90,46 @@ namespace Chess
         /// </summary>
         private void InitializeTimer()
         {
-            mTimeWhite = mTimerTimeSpan.Value;
-            mTimeBlack = mTimerTimeSpan.Value;
+            mTimeWhite = TimeSpan.FromSeconds(mTimerSetting.WhiteTimer);
+            mTimeBlack = TimeSpan.FromSeconds(mTimerSetting.BlackTimer);
 
-            mTimerWhite = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Normal, delegate
+            if(mTimerSetting.WhiteEnabled)
             {
-                mTimeWhite = mTimeWhite.Add(TimeSpan.FromSeconds(-1));
                 WhiteTimer.Text = mTimeWhite.ToString(@"mm\:ss");
-                if(mTimeWhite == TimeSpan.Zero)
+
+                mTimerWhite = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Normal, delegate
                 {
-                    mTimerWhite.Stop();
-                    MessageBox.Show("White ran out of time. Game over!", "Time's up!");
-                    Close();
-                }
+                    mTimeWhite = mTimeWhite.Add(TimeSpan.FromSeconds(-1));
+                    WhiteTimer.Text = mTimeWhite.ToString(@"mm\:ss");
+                    if (mTimeWhite == TimeSpan.Zero)
+                    {
+                        mTimerWhite.Stop();
+                        MessageBox.Show("White ran out of time. Game over!", "Time's up!");
+                        Close();
+                    }
 
-            }, Dispatcher.CurrentDispatcher);
+                }, Dispatcher.CurrentDispatcher);
+            }
 
-            mTimerBlack = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Normal, delegate
+            if(mTimerSetting.BlackEnabled)
             {
-                mTimeBlack = mTimeBlack.Add(TimeSpan.FromSeconds(-1));
-                BlackTimer.Text = mTimeBlack.ToString(@"mm\:ss");
-                if (mTimeBlack == TimeSpan.Zero)
-                {
-                    mTimerBlack.Stop();
-                    MessageBox.Show("White ran out of time. Game over!", "Time's up!");
-                    Close();
-                }
-            }, Dispatcher.CurrentDispatcher);
+                BlackTimer.Text = mTimeWhite.ToString(@"mm\:ss");
 
-            mTimerWhite.Stop();
-            mTimerBlack.Stop();
+                mTimerBlack = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Normal, delegate
+                {
+                    mTimeBlack = mTimeBlack.Add(TimeSpan.FromSeconds(-1));
+                    BlackTimer.Text = mTimeBlack.ToString(@"mm\:ss");
+                    if (mTimeBlack == TimeSpan.Zero)
+                    {
+                        mTimerBlack.Stop();
+                        MessageBox.Show("Black ran out of time. Game over!", "Time's up!");
+                        Close();
+                    }
+                }, Dispatcher.CurrentDispatcher);
+            }
+
+            mTimerWhite?.Stop();
+            mTimerBlack?.Stop();
         }
 
         /// <summary>
@@ -208,7 +239,7 @@ namespace Chess
             ChessPiece? sSelectedPiece = mChessGame.ChessBoard[sClickedRow, sClickedColumn];
 
             //In single player, you can not move black pieces
-            if (mSinglePlayer && mChessGame.SelectedPiece == null && sSelectedPiece != null && sSelectedPiece.Color == ColorEnum.Black)
+            if (mSinglePlayer && mChessGame.SelectedPiece == null && sSelectedPiece != null && sSelectedPiece.Color != mSinglePlayerColor)
             {
                 return;
             }
@@ -417,27 +448,54 @@ namespace Chess
 
             mChessGame.SelectedPiece = null;
 
+            //Update position history
+            mChessGame.UpdatePositionHistory();
+
             //Update eval bar
             UpdateEvalBar();
 
             //Change the timer
-            if (mTimerTimeSpan != null)
-            {
-                if (mChessGame.ColorToMove == ColorEnum.White)
-                {
-                    mTimerBlack.Stop();
-                    mTimerWhite.Start();
-                }
-                else
-                {
-                    mTimerWhite.Stop();
-                    mTimerBlack.Start();
-                }
-            }
+            ToggleTimer();
 
-            if(mSinglePlayer && mChessGame.ColorToMove == ColorEnum.Black)
+            if (mSinglePlayer && mChessGame.ColorToMove != mSinglePlayerColor)
             {
                 Dispatcher.InvokeAsync(() => ComputerMove(), DispatcherPriority.Background);
+            }
+        }
+
+        /// <summary>
+        /// Toggles the timer for the current player
+        /// </summary>
+        private void ToggleTimer()
+        {
+            if (mChessGame.ColorToMove == ColorEnum.White)
+            {
+                if (mTimerSetting.BlackEnabled)
+                {
+                    mTimerBlack?.Stop();
+                    mTimeBlack += TimeSpan.FromSeconds(mTimerSetting.BlackIncrement);
+                    BlackTimer.Text = mTimeWhite.ToString(@"mm\:ss");
+                }
+                if (mTimerSetting.WhiteEnabled)
+                {
+                    mTimerWhite.Start();
+                }
+            }
+            else
+            {
+                if (mTimerSetting.WhiteEnabled)
+                {
+                    mTimerWhite.Stop();
+                    if (mChessGame.CurrentMove > 2)
+                    {
+                        mTimeWhite += TimeSpan.FromSeconds(mTimerSetting.BlackIncrement);
+                    }
+                    WhiteTimer.Text = mTimeWhite.ToString(@"mm\:ss");
+                }
+                if (mTimerSetting.BlackEnabled)
+                {
+                    mTimerBlack.Start();
+                }
             }
         }
 
@@ -465,7 +523,8 @@ namespace Chess
             sStopWatch.Start();
 
             //Use the minimax algorithm
-            var sBestMove = mChessGame.MiniMax(4, false, out sPositionsTried);
+            bool sMaximizing = mChessGame.ColorToMove == ColorEnum.White ? true : false;
+            var sBestMove = mChessGame.MiniMax(4, sMaximizing, out sPositionsTried);
 
             sStopWatch.Stop();
             Console.WriteLine($"Tried {sPositionsTried} in {sStopWatch.ElapsedMilliseconds}ms");
@@ -566,6 +625,17 @@ namespace Chess
                 string previous = Moves.Items[Moves.Items.Count - 1].ToString();
                 Moves.Items[Moves.Items.Count - 1] = $"{previous} {sMoveText}";
             }
+        }
+
+        /// <summary>
+        /// Disposes the timers
+        /// </summary>
+        public void Dispose()
+        {
+            mTimerWhite?.Stop();
+            mTimerBlack?.Stop();
+            mTimerWhite = null;
+            mTimerBlack = null;
         }
         #endregion
     }

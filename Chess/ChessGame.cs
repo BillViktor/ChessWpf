@@ -1,5 +1,5 @@
 ﻿using Chess.Models;
-using System.DirectoryServices.ActiveDirectory;
+using System.Windows.Media;
 using System.Windows.Shapes;
 
 namespace Chess
@@ -7,17 +7,12 @@ namespace Chess
     public class ChessGame
     {
         //Fields
-        private ChessPiece?[,] mChessBoard = new ChessPiece?[8, 8]
-        {
-            { new Rook(ColorEnum.Black), new Knight(ColorEnum.Black), new Bishop(ColorEnum.Black), new Queen(ColorEnum.Black), new King(ColorEnum.Black), new Bishop(ColorEnum.Black), new Knight(ColorEnum.Black), new Rook(ColorEnum.Black)  },
-            { new Pawn(ColorEnum.Black), new Pawn(ColorEnum.Black), new Pawn(ColorEnum.Black), new Pawn(ColorEnum.Black), new Pawn(ColorEnum.Black), new Pawn(ColorEnum.Black), new Pawn(ColorEnum.Black), new Pawn(ColorEnum.Black)  },
-            { null, null, null, null, null, null, null, null  },
-            { null, null, null, null, null, null, null, null  },
-            { null, null, null, null, null, null, null, null  },
-            { null, null, null, null, null, null, null, null  },
-            { new Pawn(ColorEnum.White), new Pawn(ColorEnum.White), new Pawn(ColorEnum.White), new Pawn(ColorEnum.White), new Pawn(ColorEnum.White), new Pawn(ColorEnum.White), new Pawn(ColorEnum.White), new Pawn(ColorEnum.White)  },
-            { new Rook(ColorEnum.White), new Knight(ColorEnum.White), new Bishop(ColorEnum.White), new Queen(ColorEnum.White), new King(ColorEnum.White), new Bishop(ColorEnum.White), new Knight(ColorEnum.White), new Rook(ColorEnum.White)  }
-        };
+        private string mStartingString = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+        private ChessPiece?[,] mChessBoard = new ChessPiece?[8, 8];
+
+        //History of positions, the key is the FEN string and the value is the number of times it has appeared in the game
+        private Dictionary<string, int> mPositionHistory = new Dictionary<string, int>(); 
 
         private ColorEnum mColorToMove = ColorEnum.White;
         private List<Rectangle> mHighLightedCells = new List<Rectangle>();
@@ -32,6 +27,157 @@ namespace Chess
         public ChessPiece? SelectedPiece { get => mSelectedPiece; set => mSelectedPiece = value; }
         public int CurrentMove { get => mCurrentMove; set => mCurrentMove = value; }
         public Move LastMove { get => mLastMove; set => mLastMove = value; }
+
+        //Constructors
+        public ChessGame()
+        {
+            LoadBoardFromFen(mStartingString);
+        }
+        public ChessGame(string aFen)
+        {
+            LoadBoardFromFen(aFen);
+        }
+
+        /// <summary>
+        /// Updates the position history
+        /// </summary>
+        public void UpdatePositionHistory()
+        {
+            string sFenString = GetFenString();
+
+            if(mPositionHistory.ContainsKey(sFenString))
+            {
+                mPositionHistory[GetFenString()]++;
+            }
+            else
+            {
+                mPositionHistory.Add(sFenString, 1);
+            }
+        }
+
+        /// <summary>
+        /// Sets up the chess board from a FEN string.
+        /// </summary>
+        /// <param name="aFen">The FEN string</param>
+        public void LoadBoardFromFen(string aFen)
+        {
+            //Reset board
+            mChessBoard = new ChessPiece?[8, 8]; 
+
+            string[] sParts = aFen.Split(' ');
+            string[] sRows = sParts[0].Split('/');
+
+            for (int sRow = 0; sRow < 8; sRow++)
+            {
+                int sFile = 0;
+                foreach (char c in sRows[sRow])
+                {
+                    if (char.IsDigit(c))
+                    {
+                        //Skip empty squares
+                        sFile += c - '0'; 
+                    }
+                    else
+                    {
+                        ColorEnum color = char.IsUpper(c) ? ColorEnum.White : ColorEnum.Black;
+                        mChessBoard[sRow, sFile] = GetPieceFromFenChar(char.ToLower(c), color);
+                        sFile++;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Creates a chess piece from a FEN character.
+        /// </summary>
+        /// <param name="aChar"></param>
+        /// <param name="aColor"></param>
+        /// <returns>A chesspiece</returns>
+        private ChessPiece? GetPieceFromFenChar(char aChar, ColorEnum aColor)
+        {
+            return aChar switch
+            {
+                'p' => new Pawn(aColor),
+                'r' => new Rook(aColor),
+                'n' => new Knight(aColor),
+                'b' => new Bishop(aColor),
+                'q' => new Queen(aColor),
+                'k' => new King(aColor),
+                _ => null
+            };
+        }
+
+        /// <summary>
+        /// Gets the FEN character from a chess piece.
+        /// </summary>
+        /// <param name="aPiece">The chess piece</param>
+        /// <returns>The FEN char</returns>
+        private char GetFenCharFromPiece(ChessPiece aPiece)
+        {
+            char c = aPiece switch
+            {
+                Pawn => 'p',
+                Rook => 'r',
+                Knight => 'n',
+                Bishop => 'b',
+                Queen => 'q',
+                King => 'k',
+                _ => '?'
+            };
+
+            return aPiece.Color == ColorEnum.White ? char.ToUpper(c) : c;
+        }
+
+        /// <summary>
+        /// Gets the current state of the board as a FEN string
+        /// </summary>
+        public string GetFenString()
+        {
+            string sFen = "";
+
+            for (int sRow = 0; sRow < 8; sRow++)
+            {
+                int sEmptyCount = 0;
+
+                for (int sCol = 0; sCol < 8; sCol++)
+                {
+                    ChessPiece? sPiece = mChessBoard[sRow, sCol];
+
+                    if (sPiece == null)
+                    {
+                        sEmptyCount++;
+                    }
+                    else
+                    {
+                        if (sEmptyCount > 0)
+                        {
+                            sFen += sEmptyCount.ToString();
+                            sEmptyCount = 0;
+                        }
+
+                        char sPieceChar = GetFenCharFromPiece(sPiece);
+                        sFen += sPieceChar;
+                    }
+                }
+
+                if (sEmptyCount > 0)
+                {
+                    sFen += sEmptyCount.ToString();
+                }
+
+                if (sRow < 7)
+                {
+                    sFen += "/";
+                }
+            }
+
+            string sActiveColor = mColorToMove == ColorEnum.White ? "w" : "b";
+
+            //Rest of FEN: turn, castling, en passant, halfmove, fullmove
+            //TODO: Add castling, en passant, halfmove, fullmove, hardcoded for now
+            sFen += $" {sActiveColor} KQkq - 0 1";
+            return sFen;
+        }
 
         /// <summary>
         /// Checks if the move is valid.
@@ -409,12 +555,26 @@ namespace Chess
         }
 
         /// <summary>
+        /// Checks if the game is a draw by threefold repetition.
+        /// </summary>
+        /// <returns></returns>
+        public bool IsThreefoldRule()
+        {
+            if(mPositionHistory.Any(x => x.Value >= 3))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Checks if the game is over (checkmate or stalemate).
         /// </summary>
         /// <returns>True if game is over, false if not</returns>
         private bool IsGameOver()
         {
-            return IsKingInCheckmate(ColorEnum.White) || IsKingInCheckmate(ColorEnum.Black) || IsStalemate(ColorEnum.White) || IsStalemate(ColorEnum.Black);
+            return IsKingInCheckmate(ColorEnum.White) || IsKingInCheckmate(ColorEnum.Black) || IsStalemate(ColorEnum.White) || IsStalemate(ColorEnum.Black) || IsThreefoldRule();
         }
 
         /// <summary>
@@ -431,6 +591,28 @@ namespace Chess
                 for (int sCol = 0; sCol < 8; sCol++)
                 {
                     if (mChessBoard[sRow, sCol]?.Color == aColor)
+                    {
+                        sPieces.Add((sRow, sCol));
+                    }
+                }
+            }
+
+            return sPieces;
+        }
+
+        /// <summary>
+        /// Gets the coordinates of all pieces on the board
+        /// </summary>
+        /// <returns>A list of tuples containing coordinates</returns>
+        public List<(int, int)> GetAllPiecesCoordinates()
+        {
+            List<(int, int)> sPieces = new List<(int, int)>();
+
+            for (int sRow = 0; sRow < 8; sRow++)
+            {
+                for (int sCol = 0; sCol < 8; sCol++)
+                {
+                    if (mChessBoard[sRow, sCol] != null)
                     {
                         sPieces.Add((sRow, sCol));
                     }
@@ -462,14 +644,48 @@ namespace Chess
 
         /// <summary>
         /// Evaluates the board and returns a score.
-        /// Used by the MiniMax algorithm
+        /// Positive means white is in the lead, negative means black is.
         /// </summary>
-        /// <returns>The board evaluation, positive means white is in the lead, negative means black is</returns>
         public int EvaluateBoard()
         {
-            List<ChessPiece> sPieces = GetAllPieces();
+            int sScore = 0;
+            var sCoordinates = GetAllPiecesCoordinates();
 
-            return sPieces.Sum(x => x.Value);
+            foreach (var (sRow, sCol) in sCoordinates)
+            {
+                ChessPiece sPiece = mChessBoard[sRow, sCol];
+                int sPositionBonus = 0;
+
+                // Flip row for black pieces for position tables
+                int sAdjustedRow = sPiece.Color == ColorEnum.White ? sRow : 7 - sRow;
+
+                switch (sPiece)
+                {
+                    case Pawn:
+                        sPositionBonus = ScoreTables.PawnTable[sAdjustedRow, sCol];
+                        break;
+                    case Knight:
+                        sPositionBonus = ScoreTables.KnightTable[sAdjustedRow, sCol];
+                        break;
+                    case Bishop:
+                        sPositionBonus = ScoreTables.BishopTable[sAdjustedRow, sCol];
+                        break;
+                    case Rook:
+                        sPositionBonus = ScoreTables.RookTable[sAdjustedRow, sCol];
+                        break;
+                    case Queen:
+                        sPositionBonus = ScoreTables.QueenTable[sAdjustedRow, sCol];
+                        break;
+                    case King:
+                        sPositionBonus = ScoreTables.KingTable[sAdjustedRow, sCol];
+                        break;
+                }
+
+                // Add or subtract based on piece color
+                sScore += sPiece.Value + (sPiece.Color == ColorEnum.White ? sPositionBonus : -sPositionBonus);
+            }
+
+            return sScore;
         }
 
         /// <summary>
@@ -478,10 +694,51 @@ namespace Chess
         /// <returns>A tuple containing the score of both colors</returns>
         public (int White, int Black) GetEvaluation()
         {
-            List<ChessPiece> sPieces = GetAllPieces();
+            int sWhiteScore = 0;
+            int sBlackScore = 0;
 
-            return (sPieces.Where(x => x.Color == ColorEnum.White).Sum(x => x.Value),
-                sPieces.Where(x => x.Color == ColorEnum.Black).Sum(x => x.Value));
+            var sCoordinates = GetAllPiecesCoordinates();
+
+            foreach (var (sRow, sCol) in sCoordinates)
+            {
+                ChessPiece sPiece = mChessBoard[sRow, sCol];
+                int sPositionBonus = 0;
+
+                int sAdjustedRow = sPiece.Color == ColorEnum.White ? sRow : 7 - sRow;
+
+                switch (sPiece)
+                {
+                    case Pawn:
+                        sPositionBonus = ScoreTables.PawnTable[sAdjustedRow, sCol];
+                        break;
+                    case Knight:
+                        sPositionBonus = ScoreTables.KnightTable[sAdjustedRow, sCol];
+                        break;
+                    case Bishop:
+                        sPositionBonus = ScoreTables.BishopTable[sAdjustedRow, sCol];
+                        break;
+                    case Rook:
+                        sPositionBonus = ScoreTables.RookTable[sAdjustedRow, sCol];
+                        break;
+                    case Queen:
+                        sPositionBonus = ScoreTables.QueenTable[sAdjustedRow, sCol];
+                        break;
+                    case King:
+                        sPositionBonus = ScoreTables.KingTable[sAdjustedRow, sCol];
+                        break;
+                }
+
+                if (sPiece.Color == ColorEnum.White)
+                {
+                    sWhiteScore += sPiece.Value + sPositionBonus;
+                }
+                else
+                {
+                    sBlackScore += sPiece.Value + sPositionBonus*-1;
+                }
+            }
+
+            return (sWhiteScore, sBlackScore);
         }
 
         /// <summary>
@@ -596,26 +853,6 @@ namespace Chess
         }
 
         /// <summary>
-        /// Gets a list of all pieces
-        /// </summary>
-        /// <returns>List of all pieces</returns>
-        private List<ChessPiece> GetAllPieces()
-        {
-            List<ChessPiece> sPieces = new List<ChessPiece>();
-            for (int sRow = 0; sRow < 8; sRow++)
-            {
-                for (int sCol = 0; sCol < 8; sCol++)
-                {
-                    if (mChessBoard[sRow, sCol] != null)
-                    {
-                        sPieces.Add(mChessBoard[sRow, sCol]);
-                    }
-                }
-            }
-            return sPieces;
-        }
-
-        /// <summary>
         /// Orders the moves based to make the minimax algorithm more efficient (thanks to alpha beta pruning)
         /// </summary>
         /// <param name="aMovesList">The list of moves to order</param>
@@ -634,13 +871,13 @@ namespace Chess
                 //Promotions
                 if (sMove.MoveType == MoveTypeEnum.Promotion)
                 {
-                    sScore += 900; // Queen promotion — customize if you support other promotions
+                    sScore += 900; //Assume Queen promotion 
                 }
 
                 //Castling bonuses
                 if (sMove.MoveType == MoveTypeEnum.CastlingKingSide || sMove.MoveType == MoveTypeEnum.CastlingQueenSide)
                 {
-                    sScore += 30; // Favor castling a bit
+                    sScore += 30; //Favor castling a bit
                 }
 
                 //Center control (d4, e4, d5, e5)
