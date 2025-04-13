@@ -1,5 +1,4 @@
 ﻿using Chess.Models;
-using System.Windows.Media;
 using System.Windows.Shapes;
 
 namespace Chess
@@ -85,6 +84,9 @@ namespace Chess
                     }
                 }
             }
+
+            //Set color to move
+            mColorToMove = sParts[1] == "w" ? ColorEnum.White : ColorEnum.Black;
         }
 
         /// <summary>
@@ -384,8 +386,9 @@ namespace Chess
             //Make sure we're not in check
             if (IsKingInCheck(sKing.Color)) return false;
 
-            //Get the column of the rook
-            int sRookCol = sColDiff > 0 ? 7 : 0;
+            // Determine castling side
+            bool sIsKingSide = sColDiff > 0;
+            int sRookCol = sIsKingSide ? 7 : 0;
 
             //Make sure the rook hasn't moved
             ChessPiece sChessPiece = mChessBoard[aRowFrom, sRookCol];
@@ -394,6 +397,19 @@ namespace Chess
 
             //Make sure the path between them is clear
             if (!IsPathClear(aRowFrom, aColFrom, aRowFrom, sRookCol)) return false;
+
+            //Squares the king passes through must not be under attack
+            int step = sIsKingSide ? 1 : -1;
+            for (int i = 1; i <= 2; i++)
+            {
+                int colToCheck = aColFrom + step * i;
+                if (IsSquareAttacked(aRowFrom, colToCheck, sKing.Color == ColorEnum.White ? ColorEnum.Black : ColorEnum.White))
+                    return false;
+            }
+
+            // Queenside special case: also check the square next to the rook isn't under attack (e.g. d1 or d8)
+            if (!sIsKingSide && IsSquareAttacked(aRowFrom, aColFrom - 1, sKing.Color == ColorEnum.White ? ColorEnum.Black : ColorEnum.White))
+                return false;
 
             return true;
         }
@@ -470,6 +486,27 @@ namespace Chess
                 Bishop sBishop => IsValidBishopMove(aRowFrom, aColFrom, aRowTo, aColTo),
                 _ => false
             };
+        }
+
+        /// <summary>
+        /// Checks if the square is attacked by any piece of the given color.
+        /// </summary>
+        /// <param name="aRow">The row to attack</param>
+        /// <param name="aCol">The col to attack</param>
+        /// <param name="aColor">The color to attack</param>
+        /// <returns>True if under attack, false if not</returns>
+        private bool IsSquareAttacked(int aRow, int aCol, ColorEnum aColor)
+        {
+            List<(int, int)> sOtherColoredPieces = GetAllPiecesCoordinates(aColor);
+
+            foreach (var (sRow, sCol) in sOtherColoredPieces)
+            {
+                if (CanAttackSquare(sRow, sCol, aRow, aCol))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -649,6 +686,13 @@ namespace Chess
         public int EvaluateBoard()
         {
             int sScore = 0;
+
+            if (IsKingInCheckmate(ColorEnum.White)) return int.MinValue;
+            if (IsKingInCheckmate(ColorEnum.Black)) return int.MaxValue;
+            if (IsThreefoldRule()) return 0; //Draw
+            if (IsStalemate(ColorEnum.White)) return 0; //Draw
+            if (IsStalemate(ColorEnum.Black)) return 0; //Draw
+
             var sCoordinates = GetAllPiecesCoordinates();
 
             foreach (var (sRow, sCol) in sCoordinates)
@@ -750,7 +794,7 @@ namespace Chess
         /// <param name="aAlpha">Alpha beta pruning</param>
         /// <param name="aBeta">Alpha beta pruning</param>
         /// <returns>Tuple containing the evaluation and the move</returns>
-        public (int BestEval, Move BestMove) MiniMax(int aDepth, bool aIsMaximizingPlayer, out int aPosTried, int aAlpha = int.MinValue, int aBeta = int.MaxValue)
+        public (int BestEval, Move BestMove) MiniMax(int aDepth, bool aIsMaximizingPlayer, out int aPosTried, int aAlpha = int.MinValue, int aBeta = int.MaxValue, bool aUsePruning = true)
         {
             aPosTried = 0;
 
@@ -771,30 +815,36 @@ namespace Chess
             foreach (Move sMove in sMoves)
             {
                 MakeMove(sMove);
-
                 int sSubPosTried;
-                var sNext = MiniMax(aDepth - 1, !aIsMaximizingPlayer, out sSubPosTried);
+                var sNext = MiniMax(aDepth - 1, !aIsMaximizingPlayer, out sSubPosTried, aAlpha, aBeta, aUsePruning);
                 aPosTried += sSubPosTried;
-
-                //Undo move
                 UndoMove(sMove);
 
-                if (aIsMaximizingPlayer ? sNext.BestEval > sValue : sNext.BestEval < sValue)
-                {
-                    sValue = sNext.BestEval;
-                    sBestMove = sMove;
-                }
-
+                //Update value and best move
                 if (aIsMaximizingPlayer)
                 {
-                    aAlpha = Math.Max(aAlpha, sValue);
+                    if (sNext.BestEval > sValue)
+                    {
+                        sValue = sNext.BestEval;
+                        sBestMove = sMove;
+                    }
+
+                    if (aUsePruning) aAlpha = Math.Max(aAlpha, sValue);
                 }
                 else
                 {
-                    aBeta = Math.Min(aBeta, sValue);
+                    if (sNext.BestEval < sValue)
+                    {
+                        sValue = sNext.BestEval;
+                        sBestMove = sMove;
+                    }
+
+                    if (aUsePruning) aBeta = Math.Min(aBeta, sValue);
                 }
 
-                if (aBeta <= aAlpha) break; // Alpha cutoff
+                //Prune if needed
+                if (aUsePruning && aBeta <= aAlpha)
+                    break;
             }
 
             return (sValue, sBestMove);
@@ -805,7 +855,7 @@ namespace Chess
         /// </summary>
         /// <param name="aColorEnum">The color to get all moves for</param>
         /// <returns>List of moves</returns>
-        private List<Move> GetAllMoves(ColorEnum aColorEnum)
+        public List<Move> GetAllMoves(ColorEnum aColorEnum)
         {
             List<Move> sMoves = new List<Move>();
 

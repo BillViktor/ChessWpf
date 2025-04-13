@@ -17,6 +17,7 @@ namespace Chess
     public partial class ChessWindow : Window, IDisposable
     {
         private ChessGame mChessGame = new ChessGame();
+        private const int cMinimaxDepth = 2;
 
         //Settings
         private TimerSetting mTimerSetting;
@@ -274,7 +275,7 @@ namespace Chess
 
             foreach(Move sMove in sMoves)
             {
-                HighlightCell(sMove.ToRow, sMove.ToCol, Colors.LightBlue, "ValidMove");
+                HighlightCell(sMove.ToRow, sMove.ToCol, sMove.MoveType == MoveTypeEnum.Capture ? Colors.IndianRed : Colors.LightBlue, "ValidMove");
             }
         }
 
@@ -439,6 +440,12 @@ namespace Chess
                 MessageBox.Show("Stalemate! The game is a draw!", "Game over!");
                 Close();
             }
+            else if(mChessGame.IsThreefoldRule())
+            {
+                PlaySound("game-end.wav");
+                MessageBox.Show("Stalemate! The game is a draw by Threefold rule.", "Game over!");
+                Close();
+            }
 
             //Add move to list
             AddMoveToList(aMove, sCheck, sPromotion);
@@ -524,7 +531,7 @@ namespace Chess
 
             //Use the minimax algorithm
             bool sMaximizing = mChessGame.ColorToMove == ColorEnum.White ? true : false;
-            var sBestMove = mChessGame.MiniMax(4, sMaximizing, out sPositionsTried);
+            var sBestMove = mChessGame.MiniMax(cMinimaxDepth, sMaximizing, out sPositionsTried);
 
             sStopWatch.Stop();
             Console.WriteLine($"Tried {sPositionsTried} in {sStopWatch.ElapsedMilliseconds}ms");
