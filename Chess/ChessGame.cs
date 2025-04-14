@@ -7,7 +7,8 @@ namespace Chess
     public class ChessGame
     {
         //Fields
-        private string mStartingString = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        //private string mStartingString = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        private string mStartingString = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
 
         private ChessPiece?[,] mChessBoard = new ChessPiece?[8, 8];
 
@@ -237,32 +238,32 @@ namespace Chess
             string sCastling = "";
 
             //White king-side castling
-            if (mChessBoard[0, 4] is King sWhiteKing && sWhiteKing.MoveCount == 0)
+            if (mChessBoard[7, 4] is King sWhiteKing && sWhiteKing.MoveCount == 0)
             {
                 //Check white king-side rook (h1)
-                if (mChessBoard[0, 7] is Rook sKingSideRook && sKingSideRook.MoveCount == 0)
+                if (mChessBoard[7, 7] is Rook sKingSideRook && sKingSideRook.MoveCount == 0)
                 {
                     sCastling += "K";
                 }
 
                 //Check white queen-side rook (a1)
-                if (mChessBoard[0, 0] is Rook sQueenSideRook && sQueenSideRook.MoveCount == 0)
+                if (mChessBoard[7, 0] is Rook sQueenSideRook && sQueenSideRook.MoveCount == 0)
                 {
                     sCastling += "Q";
                 }
             }
 
             //Black king-side castling
-            if ( mChessBoard[7, 4] is King sBlackKing && sBlackKing.MoveCount == 0)
+            if ( mChessBoard[0, 4] is King sBlackKing && sBlackKing.MoveCount == 0)
             {
                 //Check black king-side rook (h8)
-                if (mChessBoard[7, 7] is Rook sKingSideRook && sKingSideRook.MoveCount == 0)
+                if (mChessBoard[0, 7] is Rook sKingSideRook && sKingSideRook.MoveCount == 0)
                 {
                     sCastling += "k";
                 }
 
                 //Check black queen-side rook (a8)
-                if (mChessBoard[7, 0] is Rook sQueenSideRook && sQueenSideRook.MoveCount == 0)
+                if (mChessBoard[0, 0] is Rook sQueenSideRook && sQueenSideRook.MoveCount == 0)
                 {
                     sCastling += "q";
                 }
@@ -428,7 +429,7 @@ namespace Chess
             }
 
             //First move, allow two steps forward
-            if (aColTo == aColFrom && aPawn.MoveCount == 0 && aRowTo == aRowFrom + 2 * sDirection && mChessBoard[aRowTo, aColTo] == null && mChessBoard[aRowFrom + sDirection, aColFrom] == null)
+            if (aColTo == aColFrom && ((aPawn.Color == ColorEnum.Black && aRowFrom == 1) || (aPawn.Color == ColorEnum.White && aRowFrom == 6)) && aRowTo == aRowFrom + 2 * sDirection && mChessBoard[aRowTo, aColTo] == null && mChessBoard[aRowFrom + sDirection, aColFrom] == null)
             {
                 return true;
             }
@@ -894,7 +895,7 @@ namespace Chess
         /// <param name="aAlpha">Alpha beta pruning</param>
         /// <param name="aBeta">Alpha beta pruning</param>
         /// <returns>Tuple containing the evaluation and the move</returns>
-        public (int BestEval, Move BestMove) MiniMax(int aDepth, bool aIsMaximizingPlayer, out int sNodes, int aAlpha = int.MinValue, int aBeta = int.MaxValue, bool aUsePruning = true)
+        public (int BestEval, Move BestMove) MiniMax(int aDepth, bool aIsMaximizingPlayer, out int sNodes, int aAlpha = int.MinValue, int aBeta = int.MaxValue, bool aUsePruning = true, Move sLastMove = null)
         {
             sNodes = 0;
 
@@ -910,14 +911,26 @@ namespace Chess
             sValue = aIsMaximizingPlayer ? int.MinValue : int.MaxValue;
 
             List<Move> sMoves = GetAllMoves(aIsMaximizingPlayer ? ColorEnum.White : ColorEnum.Black);
+            
+            if(sLastMove != null)
+            {
+                char colFrom = (char)('a' + sLastMove.FromCol);
+                char rowFrom = (char)('8' - sLastMove.FromRow); // 0-indexed, so '8' - row gives correct rank
+                char colTo = (char)('a' + sLastMove.ToCol);
+                char rowTo = (char)('8' - sLastMove.ToRow);
+                Console.WriteLine($"{colFrom}{rowFrom}{colTo}{rowTo}: {sMoves.Count}");
+            }
 
-            OrderMoves(sMoves);
+            if(aUsePruning)
+            {
+                OrderMoves(sMoves);
+            }
 
             foreach (Move sMove in sMoves)
             {
                 MakeMove(sMove);
                 int sSubPosTried;
-                var sNext = MiniMax(aDepth - 1, !aIsMaximizingPlayer, out sSubPosTried, aAlpha, aBeta, aUsePruning);
+                var sNext = MiniMax(aDepth - 1, !aIsMaximizingPlayer, out sSubPosTried, aAlpha, aBeta, aUsePruning, sMove);
                 sNodes += sSubPosTried;
                 UndoMove(sMove);
 
@@ -1123,13 +1136,14 @@ namespace Chess
                 LastMove = aMove;
 
                 SelectedPiece = null;
-                UpdatePositionHistory();
 
                 ColorToMove = ColorToMove == ColorEnum.White ? ColorEnum.Black : ColorEnum.White;
 
                 aMove.PieceToMove.MoveCount++;
 
                 CurrentMove++;
+
+                UpdatePositionHistory();
             }
 
             aMove.PieceToMove.MoveCount++;
