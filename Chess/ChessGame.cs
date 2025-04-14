@@ -53,10 +53,14 @@ namespace Chess
         public void UpdatePositionHistory()
         {
             string sFenString = GetFenString();
+            string[] sFenParts = sFenString.Split(' ');
 
-            if(mPositionHistory.ContainsKey(sFenString))
+            //Only use the first four fields for threefold rule (don't include the halfmove clock and fullmove number)
+            sFenString = string.Join(" ", sFenParts.Take(4));
+
+            if (mPositionHistory.ContainsKey(sFenString))
             {
-                mPositionHistory[GetFenString()]++;
+                mPositionHistory[sFenString]++;
             }
             else
             {
@@ -886,17 +890,17 @@ namespace Chess
         /// </summary>
         /// <param name="aDepth">The depth of the search</param>
         /// <param name="aIsMaximizingPlayer">If the player is maximizing (white)</param>
-        /// <param name="aPosTried">Number of positions tried</param>
+        /// <param name="sNodes">Number of positions tried</param>
         /// <param name="aAlpha">Alpha beta pruning</param>
         /// <param name="aBeta">Alpha beta pruning</param>
         /// <returns>Tuple containing the evaluation and the move</returns>
-        public (int BestEval, Move BestMove) MiniMax(int aDepth, bool aIsMaximizingPlayer, out int aPosTried, int aAlpha = int.MinValue, int aBeta = int.MaxValue, bool aUsePruning = true)
+        public (int BestEval, Move BestMove) MiniMax(int aDepth, bool aIsMaximizingPlayer, out int sNodes, int aAlpha = int.MinValue, int aBeta = int.MaxValue, bool aUsePruning = true)
         {
-            aPosTried = 0;
+            sNodes = 0;
 
             if (aDepth == 0 || IsGameOver())
             {
-                aPosTried = 1;
+                sNodes = 1;
                 return (EvaluateBoard(), null); // Include evaluation in return value
             }
 
@@ -914,7 +918,7 @@ namespace Chess
                 MakeMove(sMove);
                 int sSubPosTried;
                 var sNext = MiniMax(aDepth - 1, !aIsMaximizingPlayer, out sSubPosTried, aAlpha, aBeta, aUsePruning);
-                aPosTried += sSubPosTried;
+                sNodes += sSubPosTried;
                 UndoMove(sMove);
 
                 //Update value and best move

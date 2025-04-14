@@ -13,6 +13,7 @@ namespace ChessTest
     {
         private ChessGame mChessGame;
         private string mFenInitialPosition = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        private string mFenPositionTwo = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
         private string mFenPositionFive = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
 
         #region Initial Position
@@ -59,6 +60,36 @@ namespace ChessTest
             int sPosTried = 0;
             var sBestMove = mChessGame.MiniMax(4, true, out sPosTried, int.MinValue, int.MaxValue, false);
             Assert.AreEqual(197281, sPosTried);
+        }
+        #endregion
+
+
+        #region Position 2
+        [TestMethod]
+        public void PositionTwo_AssertNodes_DepthOne()
+        {
+            mChessGame = new ChessGame(mFenPositionTwo);
+            int sPosTried = 0;
+            var sBestMove = mChessGame.MiniMax(1, true, out sPosTried, int.MinValue, int.MaxValue, false);
+            Assert.AreEqual(48, sPosTried);
+        }
+
+        [TestMethod]
+        public void PositionTwo_AssertNodes_DepthTwo()
+        {
+            mChessGame = new ChessGame(mFenPositionTwo);
+            int sPosTried = 0;
+            var sBestMove = mChessGame.MiniMax(2, true, out sPosTried, int.MinValue, int.MaxValue, false);
+            Assert.AreEqual(2039, sPosTried);
+        }
+
+        [TestMethod]
+        public void PositionTwo_AssertNodes_DepthThree()
+        {
+            mChessGame = new ChessGame(mFenPositionTwo);
+            int sPosTried = 0;
+            var sBestMove = mChessGame.MiniMax(3, true, out sPosTried, int.MinValue, int.MaxValue, false);
+            Assert.AreEqual(97862, sPosTried);
         }
         #endregion
 
