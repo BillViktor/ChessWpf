@@ -19,6 +19,7 @@ namespace Chess
             if (!aSinglePlayer)
             {
                 SinglePlayerColorGrid.Visibility = Visibility.Hidden;
+                SinglePlayerMinimaxDepthGrid.Visibility = Visibility.Hidden;
             }
             else
             {
@@ -35,6 +36,11 @@ namespace Chess
         /// </summary>
         private void InitializeGui()
         {
+            if(mSinglePlayer)
+            {
+                SinglePlayerMinimaxDepth.Text = "4";
+            }
+
             WhiteTimerCheckBox.IsChecked = true;
             WhiteTimer.Text = "3";
             WhiteTimerIncrement.Text = "2";
@@ -63,8 +69,9 @@ namespace Chess
         private void StartButton_Click(object sender, RoutedEventArgs e)
         {
             if (!SetTimerSettings()) return;
+            if (mSinglePlayer && !SetMinimaxDepth()) return;
             ColorEnum sSinglePlayerColor = GetSelectedColor();
-            ChessWindow sChessWindow = new ChessWindow(mSinglePlayer, mTimerSetting, sSinglePlayerColor);
+            ChessWindow sChessWindow = new ChessWindow(mSinglePlayer, mTimerSetting, sSinglePlayerColor, int.Parse(SinglePlayerMinimaxDepth.Text));
             _ = sChessWindow.ShowDialog();
             Close();
         }
@@ -150,6 +157,21 @@ namespace Chess
                 BlackTimer = sBlackTimer * 60, // Convert to seconds
                 BlackIncrement = sBlackIncrement
             };
+
+            return true;
+        }
+
+        /// <summary>
+        /// Validates the minimax depth input
+        /// </summary>
+        /// <returns></returns>
+        private bool SetMinimaxDepth()
+        {
+            if(!int.TryParse(SinglePlayerMinimaxDepth.Text, out int sFoo) || sFoo > 4 || sFoo < 1)
+            {
+                MessageBox.Show("Invalid minimax depth value! Must be between 1-4.");
+                return false;
+            }
 
             return true;
         }

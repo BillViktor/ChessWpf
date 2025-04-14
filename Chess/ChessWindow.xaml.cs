@@ -17,7 +17,7 @@ namespace Chess
     public partial class ChessWindow : Window, IDisposable
     {
         private ChessGame mChessGame = new ChessGame();
-        private const int cMinimaxDepth = 2;
+        private int mMinimaxDepth = 4;
 
         //Settings
         private TimerSetting mTimerSetting;
@@ -31,11 +31,12 @@ namespace Chess
 
         private ColorEnum mSinglePlayerColor = ColorEnum.White;
 
-        public ChessWindow(bool aSinglePlayer, TimerSetting aTimerSetting, ColorEnum aColor = ColorEnum.White)
+        public ChessWindow(bool aSinglePlayer, TimerSetting aTimerSetting, ColorEnum aColor = ColorEnum.White, int aMinimaxDepth = 4)
         {
             InitializeComponent();
 
             mSinglePlayer = aSinglePlayer;
+            mMinimaxDepth = aMinimaxDepth;
             mSinglePlayerColor = aColor;
             mTimerSetting = aTimerSetting;
 
@@ -328,12 +329,9 @@ namespace Chess
         /// </summary>
         /// <param name="aRowTo">The row to move the piece to</param>
         /// <param name="aColTo">The col to move the piece to</param>
-        private void MovePiece(Move aMove)
+        private void MovePiece(Move aMove, bool aComputerMove = false)
         {
-            //Keep track if a piece was captured
-            bool sPieceCaptured = false;
-
-            //Make sure the move is valid
+            //Validate move
             if (!mChessGame.IsValidMove(aMove.FromRow, aMove.FromCol, aMove.ToRow, aMove.ToCol))
             {
                 PlaySound("illegal-move.wav");
@@ -342,81 +340,56 @@ namespace Chess
                 return;
             }
 
-            // Handle en passant
-            if(aMove.MoveType == MoveTypeEnum.EnPassant)
+            //Save the selected piece to move
+            aMove.PieceToMove = mChessGame.SelectedPiece;
+
+            //Handle promotions (only for UI)
+            if (!aComputerMove && aMove.PieceToMove is Pawn sPawn && (aMove.ToRow == 0 || aMove.ToRow == 7))
             {
-                int sCapturedPawnRow = aMove.FromRow;
-                mChessGame.ChessBoard[sCapturedPawnRow, aMove.ToCol] = null;
-                sPieceCaptured = true;
-            }
-            else
-            {
-                sPieceCaptured = aMove.MoveType == MoveTypeEnum.Capture;
+                var sPawnPromotion = new PawnPromotion(mChessGame.ColorToMove);
+                sPawnPromotion.ShowDialog();
+                aMove.PromotionPiece = sPawnPromotion.SelectedPromotionPiece;
+                aMove.MoveType = MoveTypeEnum.Promotion;
             }
 
-            //Handle castling
-            if(aMove.MoveType == MoveTypeEnum.CastlingQueenSide)
-            {
-                mChessGame.ChessBoard[aMove.ToRow, 3] = mChessGame.ChessBoard[aMove.ToRow, 0]; // Move rook
-                mChessGame.ChessBoard[aMove.ToRow, 0] = null;
-            }
-            else if(aMove.MoveType == MoveTypeEnum.CastlingKingSide)
-            {
-                mChessGame.ChessBoard[aMove.ToRow, 5] = mChessGame.ChessBoard[aMove.ToRow, 7]; // Move rook
-                mChessGame.ChessBoard[aMove.ToRow, 7] = null;
-            }
+            //Format promotion string for move list
+            string sPromotion = aMove.MoveType == MoveTypeEnum.Promotion
+                ? $"={aMove.PromotionPiece.Abbreviation}"
+                : "";
 
-            mChessGame.ChessBoard[aMove.FromRow, aMove.FromCol] = null;
-            mChessGame.ChessBoard[aMove.ToRow, aMove.ToCol] = mChessGame.SelectedPiece;
+            //Get the move string before we make the move
+            string sMoveString = GetMoveStringBeforeCheck(aMove, sPromotion);
 
+            //Actually make the move (handles board state internally)
+            mChessGame.MakeMove(aMove, false);
+
+            //Update UI
             RefreshBoard();
 
-            if (sPieceCaptured)
+            //Play sound
+            if (aMove.MoveType == MoveTypeEnum.Capture || aMove.MoveType == MoveTypeEnum.EnPassant)
             {
                 PlaySound("capture.wav");
+            }
+            else if (aMove.MoveType == MoveTypeEnum.Promotion)
+            {
+                PlaySound("promotion.wav");
             }
             else
             {
                 PlaySound("move-self.wav");
             }
 
-            //Check if pawn promotion
-            string sPromotion = "";
-
-            if(aMove.MoveType == MoveTypeEnum.Promotion)
-            {
-                if (mSinglePlayer && mChessGame.ColorToMove == ColorEnum.Black)
-                {
-                    mChessGame.ChessBoard[aMove.ToRow, aMove.ToCol] = new Queen(ColorEnum.Black);
-                }
-                else
-                {
-                    PawnPromotion sPawnPromotion = new PawnPromotion(mChessGame.ColorToMove);
-                    sPawnPromotion.ShowDialog();
-
-                    mChessGame.ChessBoard[aMove.ToRow, aMove.ToCol] = sPawnPromotion.SelectedPromotionPiece;
-                }
-                RefreshBoard();
-                PlaySound("promotion.wav");
-                sPromotion = $"={mChessGame.ChessBoard[aMove.ToRow, aMove.ToCol].Abbreviation}";
-            }
-
-            //Increment the move count
-            mChessGame.CurrentMove++;
-            aMove.PieceToMove.MoveCount++;
-
-            //Toggle the color to move
-            mChessGame.ColorToMove = mChessGame.ColorToMove == ColorEnum.White ? ColorEnum.Black : ColorEnum.White;
-
-            //Clear the old highlights
+            //Clear highlights and show new move
             ClearHighLights();
-
-            //Highlight the move made
             HighlightCell(aMove.FromRow, aMove.FromCol, Colors.Yellow, "LastMove");
             HighlightCell(aMove.ToRow, aMove.ToCol, Colors.Yellow, "LastMove");
 
-            //Check if it resulted in a check
+            //Check for check/checkmate/stalemate
             bool sCheck = mChessGame.IsKingInCheck(mChessGame.ColorToMove);
+
+            //Add the move to the list
+            AddMoveToList(sMoveString, sCheck, aMove.MoveType == MoveTypeEnum.EnPassant);
 
             if (sCheck)
             {
@@ -429,7 +402,6 @@ namespace Chess
                 else
                 {
                     PlaySound("check.wav");
-
                     var sKingPos = mChessGame.GetKingPosition(mChessGame.ColorToMove);
                     HighlightCell(sKingPos.Row, sKingPos.Col, Colors.Red, "Check");
                 }
@@ -440,28 +412,21 @@ namespace Chess
                 MessageBox.Show("Stalemate! The game is a draw!", "Game over!");
                 Close();
             }
-            else if(mChessGame.IsThreefoldRule())
+            else if (mChessGame.IsThreefoldRule())
             {
                 PlaySound("game-end.wav");
                 MessageBox.Show("Stalemate! The game is a draw by Threefold rule.", "Game over!");
                 Close();
             }
+            else if(mChessGame.HalfMoveClock == 50)
+            {
+                PlaySound("game-end.wav");
+                MessageBox.Show("Stalemate! The game is a draw by 50 move rule.", "Game over!");
+                Close();
+            }
 
-            //Add move to list
-            AddMoveToList(aMove, sCheck, sPromotion);
-
-            //Set last move
-            mChessGame.LastMove = aMove;
-
-            mChessGame.SelectedPiece = null;
-
-            //Update position history
-            mChessGame.UpdatePositionHistory();
-
-            //Update eval bar
+            //UI and game flow
             UpdateEvalBar();
-
-            //Change the timer
             ToggleTimer();
 
             if (mSinglePlayer && mChessGame.ColorToMove != mSinglePlayerColor)
@@ -531,7 +496,7 @@ namespace Chess
 
             //Use the minimax algorithm
             bool sMaximizing = mChessGame.ColorToMove == ColorEnum.White ? true : false;
-            var sBestMove = mChessGame.MiniMax(cMinimaxDepth, sMaximizing, out sPositionsTried);
+            var sBestMove = mChessGame.MiniMax(mMinimaxDepth, sMaximizing, out sPositionsTried);
 
             sStopWatch.Stop();
             Console.WriteLine($"Tried {sPositionsTried} in {sStopWatch.ElapsedMilliseconds}ms");
@@ -540,7 +505,7 @@ namespace Chess
             if (sBestMove.BestMove != null)
             {
                 mChessGame.SelectedPiece = mChessGame.ChessBoard[sBestMove.BestMove.FromRow, sBestMove.BestMove.FromCol];
-                MovePiece(sBestMove.BestMove);
+                MovePiece(sBestMove.BestMove, true);
             }
         }
 
@@ -596,17 +561,40 @@ namespace Chess
         /// <param name="aMove">The move made</param>
         /// <param name="aCheck">Did the move result in a check?</param>
         /// <param name="aPromotion">Did the move result in a promotion? (pawns only)</param>
-        private void AddMoveToList(Move aMove, bool aCheck, string aPromotion = "")
+        private void AddMoveToList(string aMoveStringBeforeCheck, bool aCheck, bool aEnPassant)
+        {
+            string sCheck = aCheck ? "+" : "";
+            string sEnPassant = aEnPassant ? " e.p" : "";
+
+            aMoveStringBeforeCheck += $"{sCheck}{sEnPassant}";
+
+            if (mChessGame.ColorToMove == ColorEnum.Black)
+            {
+                string sFullMove = string.Format("{0, -4} {1, -8}", mChessGame.CurrentMove-1, aMoveStringBeforeCheck);
+                Moves.Items.Add(sFullMove);
+            }
+            else
+            {
+                string sPrevious = Moves.Items[Moves.Items.Count - 1].ToString();
+                Moves.Items[Moves.Items.Count - 1] = $"{sPrevious} {aMoveStringBeforeCheck}";
+            }
+        }
+
+        /// <summary>
+        /// Gets the move string until the check mark
+        /// </summary>
+        /// <returns></returns>
+        private string GetMoveStringBeforeCheck(Move aMove, string aPromotion)
         {
             string sMoveNumber = $"{(mChessGame.CurrentMove + 1) / 2}.";
 
             string sMoveText = "";
 
-            if(aMove.MoveType == MoveTypeEnum.CastlingKingSide)
+            if (aMove.MoveType == MoveTypeEnum.CastlingKingSide)
             {
                 sMoveText = "O-O";
             }
-            else if(aMove.MoveType == MoveTypeEnum.CastlingQueenSide)
+            else if (aMove.MoveType == MoveTypeEnum.CastlingQueenSide)
             {
                 sMoveText = "O-O-O";
             }
@@ -616,22 +604,11 @@ namespace Chess
                 string sFromFile = sIsPawnCapture ? $"{mChessGame.GetColumnCoordinate(aMove.FromCol)}" : "";
                 string sCapture = aMove.PieceCaptured != null ? "x" : "";
                 string sToSquare = $"{mChessGame.GetColumnCoordinate(aMove.ToCol)}{mChessGame.GetRowCoordinate(aMove.ToRow)}";
-                string sCheck = aCheck ? "+" : "";
-                string sEnPassant = aMove.MoveType == MoveTypeEnum.EnPassant ? " e.p" : "";
 
-                sMoveText = $"{sFromFile}{aMove.PieceToMove.Abbreviation}{sCapture}{sToSquare}{aPromotion}{sCheck}{sEnPassant}";
+                sMoveText = $"{sFromFile}{aMove.PieceToMove.Abbreviation}{sCapture}{sToSquare}{aPromotion}";
             }
 
-            if (aMove.PieceToMove.Color == ColorEnum.White)
-            {
-                string fullMove = string.Format("{0, -4} {1, -8}", sMoveNumber, sMoveText);
-                Moves.Items.Add(fullMove);
-            }
-            else
-            {
-                string previous = Moves.Items[Moves.Items.Count - 1].ToString();
-                Moves.Items[Moves.Items.Count - 1] = $"{previous} {sMoveText}";
-            }
+            return sMoveText;
         }
 
         /// <summary>

@@ -26,6 +26,7 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="20"/>
@@ -51,7 +52,22 @@
             <RadioButton x:Name="WhiteButton" Grid.Row="1" Grid.Column="0" Foreground="White" FontSize="24" FontWeight="Bold" FontFamily="Courier New" HorizontalAlignment="Center" VerticalContentAlignment="Center">White</RadioButton>
             <RadioButton x:Name="BlackButton" Grid.Row="1" Grid.Column="1" Foreground="White" FontSize="24" FontWeight="Bold" FontFamily="Courier New" HorizontalAlignment="Center" VerticalContentAlignment="Center">Black</RadioButton>
         </Grid>
-        
+
+        <!-- Minimax Depth (singleplayer only) -->
+        <Grid Grid.Row="2" Grid.Column="1" x:Name="SinglePlayerMinimaxDepthGrid">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Margin="10, 0" Grid.Row="0" Grid.Column="0" FontFamily="Courier New" FontWeight="Bold" FontSize="16" Foreground="White" HorizontalAlignment="Right">Minimax Depth</TextBlock>
+            <TextBox x:Name="SinglePlayerMinimaxDepth" Margin="10, 0" Width="160" Grid.Row="0" Grid.Column="1" FontFamily="Courier New" FontWeight="Bold" FontSize="16" TextAlignment="Center" HorizontalAlignment="Left">4</TextBox>
+
+        </Grid>
+
         <!-- Timer Settings -->
         <Grid Margin="0, 20" Grid.Row="3" Grid.Column="1">
             <Grid.RowDefinitions>
@@ -110,7 +126,7 @@
         </Grid>
 
         <!-- Buttons -->
-        <Grid Grid.Row="5" Grid.Column="1">
+        <Grid Grid.Row="6" Grid.Column="1">
             <Grid.RowDefinitions>
                 <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>

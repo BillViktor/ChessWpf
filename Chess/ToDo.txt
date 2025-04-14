@@ -1,3 +1,1 @@
-- Castling, man får inte vara i schack på platserna kungen "passerar"
-- Gör FEN strings korrekt
 - Se till att alla test passerar

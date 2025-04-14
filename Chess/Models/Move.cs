@@ -13,6 +13,10 @@
         public ChessPiece? PieceCaptured { get; set; }
         public MoveTypeEnum MoveType { get; set; } = MoveTypeEnum.Normal;
 
+        public ChessPiece? PromotionPiece; //For promotion
+        public ChessPiece? OriginalPawn;   //To restore during undo
+
+        //Used in move ordering
         public int Score { get; set; } = 0;
 
         public Move(ChessPiece sPieceToMove, int aFromRow, int aFromCol, int aToRow, int aToCol, ChessPiece aPieceCaptured)
@@ -30,13 +34,10 @@
         private void SetMoveType()
         {
             //Promotion
-            if(PieceToMove is Pawn && PieceToMove.Color == ColorEnum.White && ToRow == 0)
+            if (PromotionPiece != null)
             {
                 MoveType = MoveTypeEnum.Promotion;
-            }
-            else if(PieceToMove is Pawn && PieceToMove.Color == ColorEnum.Black && ToRow == 7)
-            {
-                MoveType = MoveTypeEnum.Promotion;
+                return;
             }
 
             //Capture
