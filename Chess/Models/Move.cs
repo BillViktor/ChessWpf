@@ -44,16 +44,16 @@
                 return;
             }
 
-            //Capture
-            else if(PieceCaptured != null)
-            {
-                MoveType = MoveTypeEnum.Capture;
-            }
-
             //En Passant
             else if (PieceToMove is Pawn && PieceCaptured == null && Math.Abs(ToCol - FromCol) == 1 && Math.Abs(ToRow - FromRow) == 1)
             {
                 MoveType = MoveTypeEnum.EnPassant;
+            }
+
+            //Capture
+            else if(PieceCaptured != null)
+            {
+                MoveType = MoveTypeEnum.Capture;
             }
 
             //Castling

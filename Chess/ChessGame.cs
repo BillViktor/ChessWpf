@@ -7,7 +7,8 @@ namespace Chess
     public class ChessGame
     {
         //Fields
-        private string mStartingString = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        //private string mStartingString = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        private string mStartingString = "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1";
 
         private ChessPiece?[,] mChessBoard = new ChessPiece?[8, 8];
 
@@ -104,19 +105,19 @@ namespace Chess
 
             //Set castling rights
             string sCastlingRights = sParts[2];
-            if (!sCastlingRights.Contains("K"))
+            if (!sCastlingRights.Contains('K'))
             {
                 if (mChessBoard[7, 7] != null) mChessBoard[7, 7].MoveCount = 1; //Rook has moved (will disable castling)
             }
-            if (!sCastlingRights.Contains("Q"))
+            if (!sCastlingRights.Contains('Q'))
             {
                 if (mChessBoard[7, 0] != null) mChessBoard[7, 0].MoveCount = 1; //Rook has moved (will disable castling)
             }
-            if (!sCastlingRights.Contains("k"))
+            if (!sCastlingRights.Contains('k'))
             {
                 if (mChessBoard[0, 7] != null) mChessBoard[0, 7].MoveCount = 1; //Rook has moved (will disable castling)
             }
-            if (!sCastlingRights.Contains("q"))
+            if (!sCastlingRights.Contains('q'))
             {
                 if (mChessBoard[0, 0] != null) mChessBoard[0, 0].MoveCount = 1; //Rook has moved (will disable castling)
             }
@@ -450,11 +451,6 @@ namespace Chess
 
                     if (mLastMove.FromRow == sFromRow && mLastMove.ToRow == sToRow && mLastMove.ToCol == aColTo && mLastMove.ToRow == aRowFrom)
                     {
-                        if(mLastMove != null && mLastMove.FromRow == 6 && mLastMove.FromCol == 0)
-                        {
-                            Console.WriteLine("a2a4 en passant move found!");
-                        }
-
                         return true;
                     }
                 }
@@ -508,13 +504,11 @@ namespace Chess
             for (int i = 1; i <= 2; i++)
             {
                 int colToCheck = aColFrom + step * i;
-                if (IsSquareAttacked(aRowFrom, colToCheck, sKing.Color == ColorEnum.White ? ColorEnum.Black : ColorEnum.White))
-                    return false;
+                if (IsSquareAttacked(aRowFrom, colToCheck, sKing.Color == ColorEnum.White ? ColorEnum.Black : ColorEnum.White)) return false;
             }
 
-            // Queenside special case: also check the square next to the rook isn't under attack (e.g. d1 or d8)
-            if (!sIsKingSide && IsSquareAttacked(aRowFrom, aColFrom - 1, sKing.Color == ColorEnum.White ? ColorEnum.Black : ColorEnum.White))
-                return false;
+            //Queenside special case: also check the square next to the rook isn't under attack (e.g. d1 or d8)
+            if (!sIsKingSide && IsSquareAttacked(aRowFrom, aColFrom - 1, sKing.Color == ColorEnum.White ? ColorEnum.Black : ColorEnum.White)) return false;
 
             return true;
         }
@@ -1149,24 +1143,25 @@ namespace Chess
         /// </summary>
         public void UndoMove(Move aMove)
         {
-            // Undo promotion
             if (aMove.MoveType == MoveTypeEnum.Promotion)
             {
                 mChessBoard[aMove.FromRow, aMove.FromCol] = aMove.OriginalPawn;
+                mChessBoard[aMove.ToRow, aMove.ToCol] = aMove.PieceCaptured;
+            }
+            else if (aMove.MoveType == MoveTypeEnum.EnPassant)
+            {
+                // Restore the moved pawn
+                mChessBoard[aMove.FromRow, aMove.FromCol] = aMove.PieceToMove;
                 mChessBoard[aMove.ToRow, aMove.ToCol] = null;
+
+                // Restore the captured pawn
+                int sCapturedPawnRow = aMove.PieceToMove.Color == ColorEnum.White ? aMove.ToRow + 1 : aMove.ToRow - 1;
+                mChessBoard[sCapturedPawnRow, aMove.ToCol] = aMove.PieceCaptured;
             }
             else
             {
                 mChessBoard[aMove.FromRow, aMove.FromCol] = aMove.PieceToMove;
                 mChessBoard[aMove.ToRow, aMove.ToCol] = aMove.PieceCaptured;
-            }
-
-            // Undo en passant
-            if (aMove.MoveType == MoveTypeEnum.EnPassant)
-            {
-                int sCapturedPawnRow = aMove.PieceToMove.Color == ColorEnum.White ? aMove.ToRow + 1 : aMove.ToRow - 1;
-                mChessBoard[sCapturedPawnRow, aMove.ToCol] = aMove.PieceCaptured;
-                mChessBoard[aMove.ToRow, aMove.ToCol] = null;
             }
 
             // Undo castling

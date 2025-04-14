@@ -72,6 +72,7 @@ namespace Chess
             if (mSinglePlayer && !SetMinimaxDepth()) return;
             ColorEnum sSinglePlayerColor = GetSelectedColor();
             ChessWindow sChessWindow = new ChessWindow(mSinglePlayer, mTimerSetting, sSinglePlayerColor, int.Parse(SinglePlayerMinimaxDepth.Text));
+            Hide();
             _ = sChessWindow.ShowDialog();
             Close();
         }
