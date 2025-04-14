@@ -8,7 +8,7 @@ namespace Chess
     {
         //Fields
         //private string mStartingString = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-        private string mStartingString = "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1";
+        private string mStartingString = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1";
 
         private ChessPiece?[,] mChessBoard = new ChessPiece?[8, 8];
 
@@ -302,12 +302,12 @@ namespace Chess
 
             bool sValidMove = sPieceToMove switch
             {
-                Pawn sPawn => IsValidPawnMove(aRowFrom, aColFrom, aRowTo, aColTo, sPawn),
-                King sKing => IsValidKingMove(aRowFrom, aColFrom, aRowTo, aColTo),
-                Rook sRook => IsValidRookMove(aRowFrom, aColFrom, aRowTo, aColTo),
-                Knight sKnight => IsValidKnightMove(aRowFrom, aColFrom, aRowTo, aColTo),
-                Queen sQueen => IsValidQueenMove(aRowFrom, aColFrom, aRowTo, aColTo),
-                Bishop sBishop => IsValidBishopMove(aRowFrom, aColFrom, aRowTo, aColTo),
+                Pawn => IsValidPawnMove(aRowFrom, aColFrom, aRowTo, aColTo),
+                King => IsValidKingMove(aRowFrom, aColFrom, aRowTo, aColTo),
+                Rook => IsValidRookMove(aRowFrom, aColFrom, aRowTo, aColTo),
+                Knight => IsValidKnightMove(aRowFrom, aColFrom, aRowTo, aColTo),
+                Queen => IsValidQueenMove(aRowFrom, aColFrom, aRowTo, aColTo),
+                Bishop => IsValidBishopMove(aRowFrom, aColFrom, aRowTo, aColTo),
                 _ => false
             };
 
@@ -417,10 +417,12 @@ namespace Chess
         /// <param name="aColTo">The col to move to</param>
         /// <param name="aCoaPawnlTo">The pawn to move</param>
         /// <returns>True if valid, false if not</returns>
-        private bool IsValidPawnMove(int aRowFrom, int aColFrom, int aRowTo, int aColTo, Pawn aPawn)
+        private bool IsValidPawnMove(int aRowFrom, int aColFrom, int aRowTo, int aColTo)
         {
+            ChessPiece sPiece = mChessBoard[aRowFrom, aColFrom];
+
             //White moves up, Black moves down
-            int sDirection = (aPawn.Color == ColorEnum.White) ? -1 : 1;
+            int sDirection = (sPiece.Color == ColorEnum.White) ? -1 : 1;
 
             //Normal one-step move
             if (aColTo == aColFrom && aRowTo == aRowFrom + sDirection && mChessBoard[aRowTo, aColTo] == null)
@@ -429,13 +431,13 @@ namespace Chess
             }
 
             //First move, allow two steps forward
-            if (aColTo == aColFrom && ((aPawn.Color == ColorEnum.Black && aRowFrom == 1) || (aPawn.Color == ColorEnum.White && aRowFrom == 6)) && aRowTo == aRowFrom + 2 * sDirection && mChessBoard[aRowTo, aColTo] == null && mChessBoard[aRowFrom + sDirection, aColFrom] == null)
+            if (aColTo == aColFrom && ((sPiece.Color == ColorEnum.Black && aRowFrom == 1) || (sPiece.Color == ColorEnum.White && aRowFrom == 6)) && aRowTo == aRowFrom + 2 * sDirection && mChessBoard[aRowTo, aColTo] == null && mChessBoard[aRowFrom + sDirection, aColFrom] == null)
             {
                 return true;
             }
 
             //Capturing diagonally
-            if (Math.Abs(aColTo - aColFrom) == 1 && aRowTo == aRowFrom + sDirection && mChessBoard[aRowTo, aColTo] != null && mChessBoard[aRowTo, aColTo]?.Color != aPawn.Color)
+            if (Math.Abs(aColTo - aColFrom) == 1 && aRowTo == aRowFrom + sDirection && mChessBoard[aRowTo, aColTo] != null && mChessBoard[aRowTo, aColTo]?.Color != sPiece.Color)
             {
                 return true;
             }
@@ -577,12 +579,12 @@ namespace Chess
 
             return sPiece switch
             {
-                Pawn sPawn => IsValidPawnMove(aRowFrom, aColFrom, aRowTo, aColTo, sPawn),
-                King sKing => IsValidKingMove(aRowFrom, aColFrom, aRowTo, aColTo),
-                Rook sRook => IsValidRookMove(aRowFrom, aColFrom, aRowTo, aColTo),
-                Knight sKnight => IsValidKnightMove(aRowFrom, aColFrom, aRowTo, aColTo),
-                Queen sQueen => IsValidQueenMove(aRowFrom, aColFrom, aRowTo, aColTo),
-                Bishop sBishop => IsValidBishopMove(aRowFrom, aColFrom, aRowTo, aColTo),
+                Pawn => IsValidPawnMove(aRowFrom, aColFrom, aRowTo, aColTo),
+                King => IsValidKingMove(aRowFrom, aColFrom, aRowTo, aColTo),
+                Rook => IsValidRookMove(aRowFrom, aColFrom, aRowTo, aColTo),
+                Knight => IsValidKnightMove(aRowFrom, aColFrom, aRowTo, aColTo),
+                Queen => IsValidQueenMove(aRowFrom, aColFrom, aRowTo, aColTo),
+                Bishop => IsValidBishopMove(aRowFrom, aColFrom, aRowTo, aColTo),
                 _ => false
             };
         }
@@ -1012,11 +1014,9 @@ namespace Chess
                         {
                             foreach (var sPromotion in new ChessPiece[] { new Queen(sPiece.Color), new Rook(sPiece.Color), new Bishop(sPiece.Color), new Knight(sPiece.Color) })
                             {
-                                Move sPromoMove = new Move(sPiece, aRow, aCol, sRow, sCol, mChessBoard[sRow, sCol])
-                                {
-                                    MoveType = MoveTypeEnum.Promotion,
-                                    PromotionPiece = sPromotion
-                                };
+                                Move sPromoMove = new Move(sPiece, aRow, aCol, sRow, sCol, mChessBoard[sRow, sCol]);
+                                sPromoMove.PromotionPiece = sPromotion;
+                                sPromoMove.MoveType = MoveTypeEnum.Promotion;
                                 sMoves.Add(sPromoMove);
                             }
                         }
