@@ -7,8 +7,7 @@ namespace Chess
     public class ChessGame
     {
         //Fields
-        //private string mStartingString = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-        private string mStartingString = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
+        private string mStartingString = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
         private ChessPiece?[,] mChessBoard = new ChessPiece?[8, 8];
 
@@ -19,7 +18,8 @@ namespace Chess
         private List<Rectangle> mHighLightedCells = new List<Rectangle>();
         private ChessPiece? mSelectedPiece = null;
         private int mCurrentMove = 1;
-        private Move mLastMove;
+        private Stack<Move> mMoveHistory = new Stack<Move>();
+        private Move mLastMove => mMoveHistory.Count > 0 ? mMoveHistory.Peek() : null;
         private int mHalfMoveClock = 0; //Number of half moves since the last pawn move or capture, for 50-move draw rule
         private int mFullMoveNumber //The number of full moves (black + white
         {
@@ -35,7 +35,6 @@ namespace Chess
         public List<Rectangle> HighLightedCells { get => mHighLightedCells; set => mHighLightedCells = value; }
         public ChessPiece? SelectedPiece { get => mSelectedPiece; set => mSelectedPiece = value; }
         public int CurrentMove { get => mCurrentMove; set => mCurrentMove = value; }
-        public Move LastMove { get => mLastMove; set => mLastMove = value; }
         public int HalfMoveClock { get => mHalfMoveClock; }
 
         //Constructors
@@ -137,7 +136,7 @@ namespace Chess
                 ColorEnum lastMover = mColorToMove == ColorEnum.White ? ColorEnum.Black : ColorEnum.White;
 
                 //Try to find the pawn that moved
-                mLastMove = new Move(mChessBoard[sToRow, sCol], sFromRow, sCol, sToRow, sCol, null);
+                mMoveHistory.Push(new Move(mChessBoard[sToRow, sCol], sFromRow, sCol, sToRow, sCol, null));
             }
 
             //Set half move clock
@@ -451,6 +450,11 @@ namespace Chess
 
                     if (mLastMove.FromRow == sFromRow && mLastMove.ToRow == sToRow && mLastMove.ToCol == aColTo && mLastMove.ToRow == aRowFrom)
                     {
+                        if(mLastMove != null && mLastMove.FromRow == 6 && mLastMove.FromCol == 0)
+                        {
+                            Console.WriteLine("a2a4 en passant move found!");
+                        }
+
                         return true;
                     }
                 }
@@ -895,7 +899,7 @@ namespace Chess
         /// <param name="aAlpha">Alpha beta pruning</param>
         /// <param name="aBeta">Alpha beta pruning</param>
         /// <returns>Tuple containing the evaluation and the move</returns>
-        public (int BestEval, Move BestMove) MiniMax(int aDepth, bool aIsMaximizingPlayer, out int sNodes, int aAlpha = int.MinValue, int aBeta = int.MaxValue, bool aUsePruning = true, Move sLastMove = null)
+        public (int BestEval, Move BestMove) MiniMax(int aDepth, bool aIsMaximizingPlayer, out int sNodes, int aAlpha = int.MinValue, int aBeta = int.MaxValue, bool aUsePruning = true)
         {
             sNodes = 0;
 
@@ -911,15 +915,6 @@ namespace Chess
             sValue = aIsMaximizingPlayer ? int.MinValue : int.MaxValue;
 
             List<Move> sMoves = GetAllMoves(aIsMaximizingPlayer ? ColorEnum.White : ColorEnum.Black);
-            
-            if(sLastMove != null)
-            {
-                char colFrom = (char)('a' + sLastMove.FromCol);
-                char rowFrom = (char)('8' - sLastMove.FromRow); // 0-indexed, so '8' - row gives correct rank
-                char colTo = (char)('a' + sLastMove.ToCol);
-                char rowTo = (char)('8' - sLastMove.ToRow);
-                Console.WriteLine($"{colFrom}{rowFrom}{colTo}{rowTo}: {sMoves.Count}");
-            }
 
             if(aUsePruning)
             {
@@ -930,7 +925,7 @@ namespace Chess
             {
                 MakeMove(sMove);
                 int sSubPosTried;
-                var sNext = MiniMax(aDepth - 1, !aIsMaximizingPlayer, out sSubPosTried, aAlpha, aBeta, aUsePruning, sMove);
+                var sNext = MiniMax(aDepth - 1, !aIsMaximizingPlayer, out sSubPosTried, aAlpha, aBeta, aUsePruning);
                 sNodes += sSubPosTried;
                 UndoMove(sMove);
 
@@ -1079,13 +1074,6 @@ namespace Chess
         /// </summary>
         public void MakeMove(Move aMove, bool aSimulated = true)
         {
-            //Save the last move if this is not a simulation
-            Move sPrevLastMove = null;
-            if (!aSimulated)
-            {
-                sPrevLastMove = LastMove;
-            }
-
             aMove.PieceCaptured = mChessBoard[aMove.ToRow, aMove.ToCol];
 
             // Handle en passant
@@ -1132,19 +1120,16 @@ namespace Chess
                     mHalfMoveClock = 0;
                 }
 
-                //Set the last move after making the move if it's not a simulated move
-                LastMove = aMove;
-
                 SelectedPiece = null;
-
-                ColorToMove = ColorToMove == ColorEnum.White ? ColorEnum.Black : ColorEnum.White;
-
-                aMove.PieceToMove.MoveCount++;
 
                 CurrentMove++;
 
                 UpdatePositionHistory();
             }
+
+            ColorToMove = ColorToMove == ColorEnum.White ? ColorEnum.Black : ColorEnum.White;
+
+            mMoveHistory.Push(aMove);
 
             aMove.PieceToMove.MoveCount++;
         }
@@ -1187,7 +1172,11 @@ namespace Chess
                 mChessBoard[aMove.ToRow, 3] = null;
             }
 
+            ColorToMove = ColorToMove == ColorEnum.White ? ColorEnum.Black : ColorEnum.White;
+
             aMove.PieceToMove.MoveCount--;
+
+            mMoveHistory.Pop();
         }
         #endregion
     }
