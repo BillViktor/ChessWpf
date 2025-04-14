@@ -496,7 +496,7 @@ namespace Chess
 
             //Use the minimax algorithm
             bool sMaximizing = mChessGame.ColorToMove == ColorEnum.White ? true : false;
-            var sBestMove = mChessGame.MiniMax(mMinimaxDepth, sMaximizing, out sPositionsTried);
+            var sBestMove = mChessGame.MiniMax(mMinimaxDepth, sMaximizing, out sPositionsTried, int.MinValue, int.MaxValue, true, mMinimaxDepth);
 
             sStopWatch.Stop();
             Console.WriteLine($"Tried {sPositionsTried} in {sStopWatch.ElapsedMilliseconds}ms");

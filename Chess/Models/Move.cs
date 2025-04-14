@@ -31,6 +31,10 @@
             SetMoveType();
         }
 
+        /// <summary>
+        /// Sets the move type based on the properties of the move.
+        /// Used when ordering moves
+        /// </summary>
         private void SetMoveType()
         {
             //Promotion
@@ -64,6 +68,20 @@
                     MoveType = MoveTypeEnum.CastlingQueenSide;
                 }
             }
+        }
+
+        /// <summary>
+        /// Returns a string representation of the move.
+        /// Format: a2a4
+        /// </summary>
+        public override string ToString()
+        {
+            char sFromCol = (char)('a' + FromCol);
+            int sFromRow = 8 - FromRow;
+            char sToCol = (char)('a' + ToCol);
+            int sToRow = 8 - ToRow; 
+
+            return $"{sFromCol}{sFromRow}{sToCol}{sToRow}";
         }
     }
 }

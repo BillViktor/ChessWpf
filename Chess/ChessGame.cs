@@ -898,8 +898,9 @@ namespace Chess
         /// <param name="sNodes">Number of positions tried</param>
         /// <param name="aAlpha">Alpha beta pruning</param>
         /// <param name="aBeta">Alpha beta pruning</param>
+        /// <param name="aStartingDepth">The starting depth (for logging purposes)</param>
         /// <returns>Tuple containing the evaluation and the move</returns>
-        public (int BestEval, Move BestMove) MiniMax(int aDepth, bool aIsMaximizingPlayer, out int sNodes, int aAlpha = int.MinValue, int aBeta = int.MaxValue, bool aUsePruning = true)
+        public (int BestEval, Move BestMove) MiniMax(int aDepth, bool aIsMaximizingPlayer, out int sNodes, int aAlpha = int.MinValue, int aBeta = int.MaxValue, bool aUsePruning = true, int aStartingDepth = 0)
         {
             sNodes = 0;
 
@@ -908,11 +909,10 @@ namespace Chess
                 sNodes = 1;
                 return (EvaluateBoard(), null); // Include evaluation in return value
             }
-
-            int sValue;
+           
+            int sValue = aIsMaximizingPlayer ? int.MinValue : int.MaxValue;
             Move sBestMove = null;
-
-            sValue = aIsMaximizingPlayer ? int.MinValue : int.MaxValue;
+            int sNodesExploredThisMove = 0;
 
             List<Move> sMoves = GetAllMoves(aIsMaximizingPlayer ? ColorEnum.White : ColorEnum.Black);
 
@@ -925,9 +925,18 @@ namespace Chess
             {
                 MakeMove(sMove);
                 int sSubPosTried;
-                var sNext = MiniMax(aDepth - 1, !aIsMaximizingPlayer, out sSubPosTried, aAlpha, aBeta, aUsePruning);
+
+                var sNext = MiniMax(aDepth - 1, !aIsMaximizingPlayer, out sSubPosTried, aAlpha, aBeta, aUsePruning, aStartingDepth);
+
                 sNodes += sSubPosTried;
+                sNodesExploredThisMove += sSubPosTried;
+
                 UndoMove(sMove);
+
+                if(aDepth == aStartingDepth)
+                {
+                    Console.WriteLine($"{sMove.ToString()}: {sSubPosTried}");
+                }
 
                 //Update value and best move
                 if (aIsMaximizingPlayer)
