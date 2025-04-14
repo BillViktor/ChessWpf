@@ -98,6 +98,20 @@ namespace ChessTest
         }
 
         /// <summary>
+        /// Tests the parsing of a FEN string to ensure that the color to move is correctly identified.
+        /// </summary>
+        [TestMethod]
+        public void ParseFen_AssertColorToMove()
+        {
+            //Black
+            string sFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1";
+
+            mChessGame = new ChessGame(sFen);
+
+            Assert.AreEqual(ColorEnum.Black, mChessGame.ColorToMove);
+        }
+
+        /// <summary>
         /// Tests the export of the chessboard to a FEN string to ensure it matches the initial position.
         /// </summary>
         [TestMethod]
@@ -110,5 +124,6 @@ namespace ChessTest
 
             Assert.AreEqual(mStartingFen, sFen, false);
         }
+
     }
 }

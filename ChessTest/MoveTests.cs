@@ -4,7 +4,7 @@ using Chess.Models;
 namespace ChessTest
 {
     /// <summary>
-    /// Tests for the FEN (Forsyth-Edwards Notation) functionality in the ChessGame class.
+    /// Tests for moving chess pieces.
     /// </summary>
     [TestClass]
     public sealed class MoveTests

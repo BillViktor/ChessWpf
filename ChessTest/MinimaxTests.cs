@@ -6,6 +6,7 @@ namespace ChessTest
     /// Tests for the Minimax algorithm functionality in the ChessGame class. 
     /// Using these positions from the Chess Programming Wiki:
     /// https://www.chessprogramming.org/Perft_Results
+    /// Please note that these tests are also very dependent on the correctness of the MoveGenerator classes.
     /// </summary>
     [TestClass]
     public sealed class MinimaxTests

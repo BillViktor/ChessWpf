@@ -7,7 +7,7 @@ namespace Chess
     public class ChessGame
     {
         //Fields
-        private string mStartingString = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
+        private string mStartingString = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
         private ChessPiece?[,] mChessBoard = new ChessPiece?[8, 8];
 
