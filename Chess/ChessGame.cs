@@ -1,5 +1,4 @@
 ﻿using Chess.Models;
-using System.Windows;
 using System.Windows.Shapes;
 
 namespace Chess
@@ -7,8 +6,7 @@ namespace Chess
     public class ChessGame
     {
         //Fields
-        //private string mStartingString = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-        private string mStartingString = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1";
+        private string mStartingString = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
         private ChessPiece?[,] mChessBoard = new ChessPiece?[8, 8];
 
@@ -48,6 +46,7 @@ namespace Chess
             LoadBoardFromFen(aFen);
         }
 
+        #region Fen
         /// <summary>
         /// Updates the position history
         /// </summary>
@@ -126,18 +125,17 @@ namespace Chess
             string sEnPassant = sParts[3];
             if (sEnPassant != "-")
             {
-                int sCol = sEnPassant[0] - 'a';
-                int sRow = 8 - (sEnPassant[1] - '0');
+                int sColumn = sEnPassant[0] - 'a';
+                int sTargetRow = 8 - (sEnPassant[1] - '0');
 
-                //Determine direction and from/to rows
-                int sToRow = sRow + (mColorToMove == ColorEnum.White ? 1 : -1);
-                int sFromRow = sRow + (mColorToMove == ColorEnum.White ? 2 : -2);
+                ColorEnum sColor = mColorToMove == ColorEnum.White ? ColorEnum.Black : ColorEnum.White;
 
-                //Determine which color just moved (it's the opposite of the current turn)
-                ColorEnum lastMover = mColorToMove == ColorEnum.White ? ColorEnum.Black : ColorEnum.White;
+                int sDirection = sColor == ColorEnum.White ? -1 : 1;
 
-                //Try to find the pawn that moved
-                mMoveHistory.Push(new Move(mChessBoard[sToRow, sCol], sFromRow, sCol, sToRow, sCol, null));
+                int sFromRow = sTargetRow - sDirection;
+                int sToRow = sTargetRow + sDirection;
+
+                mMoveHistory.Push(new Move(mChessBoard[sToRow, sColumn], sFromRow, sColumn, sToRow, sColumn, null));
             }
 
             //Set half move clock
@@ -281,6 +279,7 @@ namespace Chess
             sFen += $" {sActiveColor} {sCastling} {sEnPassant} {mHalfMoveClock} {mFullMoveNumber}";
             return sFen;
         }
+        #endregion
 
         /// <summary>
         /// Checks if the move is valid.
@@ -900,12 +899,16 @@ namespace Chess
         {
             sNodes = 0;
 
-            if (aDepth == 0 || IsGameOver())
+            if (aDepth == 0)
             {
                 sNodes = 1;
-                return (EvaluateBoard(), null); // Include evaluation in return value
+                return (EvaluateBoard(), null);
             }
-           
+            if (IsGameOver())
+            {
+                return (EvaluateBoard(), null);
+            }
+
             int sValue = aIsMaximizingPlayer ? int.MinValue : int.MaxValue;
             Move sBestMove = null;
             int sNodesExploredThisMove = 0;
