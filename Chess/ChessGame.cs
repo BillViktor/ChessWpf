@@ -5,7 +5,7 @@ namespace Chess
 {
     public class ChessGame
     {
-        //Fields
+        #region Fields
         private string mStartingString = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
         private ChessPiece?[,] mChessBoard = new ChessPiece?[8, 8];
@@ -27,24 +27,28 @@ namespace Chess
                 return (mCurrentMove + 1)/2;
             }
         }
+        #endregion
 
-        //Properties
+        #region Properties
         public ChessPiece?[,] ChessBoard { get => mChessBoard; set => mChessBoard = value; }
         public ColorEnum ColorToMove { get => mColorToMove; set => mColorToMove = value; }
         public List<Rectangle> HighLightedCells { get => mHighLightedCells; set => mHighLightedCells = value; }
         public ChessPiece? SelectedPiece { get => mSelectedPiece; set => mSelectedPiece = value; }
         public int CurrentMove { get => mCurrentMove; set => mCurrentMove = value; }
         public int HalfMoveClock { get => mHalfMoveClock; }
+        #endregion
 
-        //Constructors
+        #region Constructors
         public ChessGame()
         {
             LoadBoardFromFen(mStartingString);
         }
+
         public ChessGame(string aFen)
         {
             LoadBoardFromFen(aFen);
         }
+        #endregion
 
         #region Fen
         /// <summary>
@@ -783,15 +787,18 @@ namespace Chess
         /// Evaluates the board and returns a score.
         /// Positive means white is in the lead, negative means black is.
         /// </summary>
-        public int EvaluateBoard()
+        public int EvaluateBoard(bool aRunExpensiveChecks)
         {
             int sScore = 0;
 
-            if (IsKingInCheckmate(ColorEnum.White)) return int.MinValue;
-            if (IsKingInCheckmate(ColorEnum.Black)) return int.MaxValue;
-            if (IsThreefoldRule()) return 0; //Draw
-            if (IsStalemate(ColorEnum.White)) return 0; //Draw
-            if (IsStalemate(ColorEnum.Black)) return 0; //Draw
+            if(aRunExpensiveChecks)
+            {
+                if (IsKingInCheckmate(ColorEnum.White)) return int.MinValue;
+                if (IsKingInCheckmate(ColorEnum.Black)) return int.MaxValue;
+                if (IsThreefoldRule()) return 0; //Draw
+                if (IsStalemate(ColorEnum.White)) return 0; //Draw
+                if (IsStalemate(ColorEnum.Black)) return 0; //Draw
+            }
 
             var sCoordinates = GetAllPiecesCoordinates();
 
@@ -902,11 +909,14 @@ namespace Chess
             if (aDepth == 0)
             {
                 sNodes = 1;
-                return (EvaluateBoard(), null);
+
+                //Run expensive eval at root only, not at deeper searces (expensive)
+                bool sRunExpensiveEval = (aDepth == aStartingDepth);
+                return (EvaluateBoard(sRunExpensiveEval), null);
             }
             if (IsGameOver())
             {
-                return (EvaluateBoard(), null);
+                return (EvaluateBoard(true), null);
             }
 
             int sValue = aIsMaximizingPlayer ? int.MinValue : int.MaxValue;
@@ -1048,7 +1058,7 @@ namespace Chess
                 //Captures: MVV-LVA (Most Valuable Victim - Least Valuable Attacker)
                 if (sMove.PieceCaptured != null)
                 {
-                    sScore += 10 * sMove.PieceCaptured.Value - sMove.PieceToMove.Value;
+                    sScore += (sMove.PieceCaptured.Value * 100) - sMove.PieceToMove.Value;
                 }
 
                 //Promotions
