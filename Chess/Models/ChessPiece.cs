@@ -11,6 +11,7 @@
         private ColorEnum mColor;
         private string mImagePath = "";
         private string mAbbreviation = "";
+        private int mMoveCount = 0;
 
         //Properties
         public int Value
@@ -63,6 +64,21 @@
                 if (!string.IsNullOrWhiteSpace(value))
                 {
                     mAbbreviation = value;
+                }
+            }
+        }
+
+        public int MoveCount
+        {
+            get
+            {
+                return mMoveCount;
+            }
+            set
+            {
+                if (value >= 0)
+                {
+                    mMoveCount = value;
                 }
             }
         }

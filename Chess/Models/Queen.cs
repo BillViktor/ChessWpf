@@ -1,5 +1,8 @@
 ﻿namespace Chess.Models
 {
+    /// <summary>
+    /// Class that represents a queen chess piece.
+    /// </summary>
     public class Queen : ChessPiece
     {
         public Queen(ColorEnum aColor)

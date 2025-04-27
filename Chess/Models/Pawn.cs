@@ -1,5 +1,8 @@
 ﻿namespace Chess.Models
 {
+    /// <summary>
+    /// Class representing a pawn chess piece.
+    /// </summary>
     public class Pawn : ChessPiece
     {
         public Pawn(ColorEnum aColor)

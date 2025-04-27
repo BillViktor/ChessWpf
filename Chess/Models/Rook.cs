@@ -1,5 +1,8 @@
 ﻿namespace Chess.Models
 {
+    /// <summary>
+    /// Class that represents a rook chess piece.
+    /// </summary>
     public class Rook : ChessPiece
     {
         public Rook(ColorEnum aColor)

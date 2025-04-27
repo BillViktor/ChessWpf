@@ -1,9 +1,2 @@
-Special Moves:
-- Castling
-- En Passant
-
-Misc:
-- Vid en spelare, kunna välja färg
-- Lägg till en robot på single player (minimax)
-- Kunna välja timer
-- Three 
+- Se till att alla test passerar
+- Performance på minimax

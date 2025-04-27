@@ -12,14 +12,14 @@ namespace Chess
     public partial class PawnPromotion : Window
     {
         //Fields
-        private Models.ColorEnum mColor;
+        private ColorEnum mColor;
         private ChessPiece? mSelectedPromotionPiece = null;
         private List<ChessPiece> mPieceList = new List<ChessPiece>();
 
         //Properties
         public ChessPiece? SelectedPromotionPiece { get { return mSelectedPromotionPiece; } }
 
-        public PawnPromotion(Models.ColorEnum aColor)
+        public PawnPromotion(ColorEnum aColor)
         {
             InitializeComponent();
             mColor = aColor;

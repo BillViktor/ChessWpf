@@ -20,9 +20,8 @@ namespace Chess
         /// <param name="e"></param>
         private void OnePlayerButton_Click(object sender, RoutedEventArgs e)
         {
-            ChessWindow sChessWindow = new ChessWindow(true, null);
             Hide();
-            _ = sChessWindow.ShowDialog();
+            ShowSettings(true);
             Show();
         }
 
@@ -33,12 +32,15 @@ namespace Chess
         /// <param name="e"></param>
         private void TwoPlayerButton_Click(object sender, RoutedEventArgs e)
         {
-            TimeSpan sTimeSpan = TimeSpan.FromMinutes(5);
-
-            ChessWindow sChessWindow = new ChessWindow(false, sTimeSpan);
             Hide();
-            _ = sChessWindow.ShowDialog();
+            ShowSettings(false);
             Show();
+        }
+
+        private void ShowSettings(bool aSinglePlayer)
+        {
+            SettingWindow sSettingsWindow = new SettingWindow(aSinglePlayer);
+            _ = sSettingsWindow.ShowDialog();
         }
 
         /// <summary>

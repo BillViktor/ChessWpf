@@ -14,12 +14,13 @@ namespace Chess
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class ChessWindow : Window
+    public partial class ChessWindow : Window, IDisposable
     {
         private ChessGame mChessGame = new ChessGame();
+        private int mMinimaxDepth = 4;
 
         //Settings
-        private TimeSpan? mTimerTimeSpan;
+        private TimerSetting mTimerSetting;
         private bool mSinglePlayer = false;
 
         private DispatcherTimer mTimerWhite;
@@ -28,29 +29,28 @@ namespace Chess
         private DispatcherTimer mTimerBlack;
         private TimeSpan mTimeBlack;
 
-        public ChessWindow(bool aSinglePlayer, TimeSpan? aTimerTimeSpan)
+        private ColorEnum mSinglePlayerColor = ColorEnum.White;
+
+        public ChessWindow(bool aSinglePlayer, TimerSetting aTimerSetting, ColorEnum aColor = ColorEnum.White, int aMinimaxDepth = 4)
         {
             InitializeComponent();
 
             mSinglePlayer = aSinglePlayer;
+            mMinimaxDepth = aMinimaxDepth;
+            mSinglePlayerColor = aColor;
+            mTimerSetting = aTimerSetting;
 
-            //If not single player, hide the evaluation bar
-            if (!aSinglePlayer)
-            {
-                EvaluationGrid.Width = 0;
-            }
-
-            if (aTimerTimeSpan != null)
-            {
-                mTimerTimeSpan = aTimerTimeSpan;
-                WhiteTimer.Text = aTimerTimeSpan.Value.ToString(@"mm\:ss");
-                BlackTimer.Text = aTimerTimeSpan.Value.ToString(@"mm\:ss");
-                InitializeTimer();
-            }
+            InitializeTimer();
 
             CreateChessBoard();
 
             PlaySound("game-start.wav");
+
+            //Should we start the computer?
+            if(aSinglePlayer && aColor == ColorEnum.Black)
+            {
+                Dispatcher.InvokeAsync(() => ComputerMove(), DispatcherPriority.Background);
+            }
         }
 
         /// <summary>
@@ -58,14 +58,31 @@ namespace Chess
         /// </summary>
         private void UpdateEvalBar()
         {
-            //Get the eval
-            var sEval = mChessGame.EvaluateBoard();
+            var sEval = mChessGame.GetEvaluation();
+            int sSum = Math.Abs(sEval.White - sEval.Black);
 
-            // Convert to 0.0 to 1.0: -10 = 0 (white losing), +10 = 1 (white winning)
-            double sWhitePortion = ((double)sEval.White / sEval.Total);
-            double sBlackPortion = 1.0 - sWhitePortion;
+            double sWhitePortion = 0;
+            double sBlackPortion = 0;
 
-            // Assign correctly: bottom is white, top is black
+            if(sSum == 0)
+            {
+                sWhitePortion = 0.5;
+                sBlackPortion = 0.5;
+            }
+            else
+            {
+                sWhitePortion = (double)sEval.White / sSum;
+
+                //In end game the eval can be negative for white, we need to make sure its not negative
+                if (sWhitePortion < 0)
+                {
+                    sWhitePortion = 0;
+                }
+
+                sBlackPortion = 1 - sWhitePortion;
+            }
+
+            // Convert to relative "star" values — total always adds to 1.0
             WhiteEvalRow.Height = new GridLength(sWhitePortion, GridUnitType.Star);
             BlackEvalRow.Height = new GridLength(sBlackPortion, GridUnitType.Star);
         }
@@ -75,36 +92,46 @@ namespace Chess
         /// </summary>
         private void InitializeTimer()
         {
-            mTimeWhite = mTimerTimeSpan.Value;
-            mTimeBlack = mTimerTimeSpan.Value;
+            mTimeWhite = TimeSpan.FromSeconds(mTimerSetting.WhiteTimer);
+            mTimeBlack = TimeSpan.FromSeconds(mTimerSetting.BlackTimer);
 
-            mTimerWhite = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Normal, delegate
+            if(mTimerSetting.WhiteEnabled)
             {
-                mTimeWhite = mTimeWhite.Add(TimeSpan.FromSeconds(-1));
                 WhiteTimer.Text = mTimeWhite.ToString(@"mm\:ss");
-                if(mTimeWhite == TimeSpan.Zero)
+
+                mTimerWhite = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Normal, delegate
                 {
-                    mTimerWhite.Stop();
-                    MessageBox.Show("White ran out of time. Game over!", "Time's up!");
-                    Close();
-                }
+                    mTimeWhite = mTimeWhite.Add(TimeSpan.FromSeconds(-1));
+                    WhiteTimer.Text = mTimeWhite.ToString(@"mm\:ss");
+                    if (mTimeWhite == TimeSpan.Zero)
+                    {
+                        mTimerWhite.Stop();
+                        MessageBox.Show("White ran out of time. Game over!", "Time's up!");
+                        Close();
+                    }
 
-            }, Dispatcher.CurrentDispatcher);
+                }, Dispatcher.CurrentDispatcher);
+            }
 
-            mTimerBlack = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Normal, delegate
+            if(mTimerSetting.BlackEnabled)
             {
-                mTimeBlack = mTimeBlack.Add(TimeSpan.FromSeconds(-1));
-                BlackTimer.Text = mTimeBlack.ToString(@"mm\:ss");
-                if (mTimeBlack == TimeSpan.Zero)
-                {
-                    mTimerBlack.Stop();
-                    MessageBox.Show("White ran out of time. Game over!", "Time's up!");
-                    Close();
-                }
-            }, Dispatcher.CurrentDispatcher);
+                BlackTimer.Text = mTimeWhite.ToString(@"mm\:ss");
 
-            mTimerWhite.Stop();
-            mTimerBlack.Stop();
+                mTimerBlack = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Normal, delegate
+                {
+                    mTimeBlack = mTimeBlack.Add(TimeSpan.FromSeconds(-1));
+                    BlackTimer.Text = mTimeBlack.ToString(@"mm\:ss");
+                    if (mTimeBlack == TimeSpan.Zero)
+                    {
+                        mTimerBlack.Stop();
+                        MessageBox.Show("Black ran out of time. Game over!", "Time's up!");
+                        Close();
+                    }
+                }, Dispatcher.CurrentDispatcher);
+            }
+
+            mTimerWhite?.Stop();
+            mTimerBlack?.Stop();
         }
 
         /// <summary>
@@ -214,7 +241,7 @@ namespace Chess
             ChessPiece? sSelectedPiece = mChessGame.ChessBoard[sClickedRow, sClickedColumn];
 
             //In single player, you can not move black pieces
-            if (mSinglePlayer && mChessGame.SelectedPiece == null && sSelectedPiece != null && sSelectedPiece.Color == ColorEnum.Black)
+            if (mSinglePlayer && mChessGame.SelectedPiece == null && sSelectedPiece != null && sSelectedPiece.Color != mSinglePlayerColor)
             {
                 return;
             }
@@ -242,18 +269,14 @@ namespace Chess
         /// Highlights valid moves for the selected piece
         /// </summary>
         /// <param name="aRowFrom">The row of the chess piece</param>
-        /// <param name="aColTo">The col of the chess piece</param>
-        private void HighlightValidMoves(int aRowFrom, int aColTo)
+        /// <param name="aColFrom">The col of the chess piece</param>
+        private void HighlightValidMoves(int aRowFrom, int aColFrom)
         {
-            for (int sRow = 0; sRow < 8; sRow++)
+            List<Move> sMoves = mChessGame.GetMovesForPiece(aRowFrom, aColFrom);
+
+            foreach(Move sMove in sMoves)
             {
-                for (int sCol = 0; sCol < 8; sCol++)
-                {
-                    if (mChessGame.IsValidMove(aRowFrom, aColTo, sRow, sCol))
-                    {
-                        HighlightCell(sRow, sCol, Colors.LightBlue, "ValidMove");
-                    }
-                }
+                HighlightCell(sMove.ToRow, sMove.ToCol, sMove.MoveType == MoveTypeEnum.Capture ? Colors.IndianRed : Colors.LightBlue, "ValidMove");
             }
         }
 
@@ -302,23 +325,14 @@ namespace Chess
         }
 
         /// <summary>
-        /// Moves the selected piece to the given row & col
+        /// Makes the move
         /// </summary>
         /// <param name="aRowTo">The row to move the piece to</param>
         /// <param name="aColTo">The col to move the piece to</param>
-        private void MovePiece(int aRowTo, int aColTo)
+        private void MovePiece(Move aMove, bool aComputerMove = false)
         {
-            //Keep track if a piece was captured
-            bool sPieceCaptured = false;
-
-            //Get the position of the selected piece
-            int sRowFrom = -1;
-            int sColFrom = -1;
-
-            GetPositionForPiece(out sRowFrom, out sColFrom);
-
-            //Make sure the move is valid
-            if (!mChessGame.IsValidMove(sRowFrom, sColFrom, aRowTo, aColTo))
+            //Validate move
+            if (!mChessGame.IsValidMove(aMove.FromRow, aMove.FromCol, aMove.ToRow, aMove.ToCol))
             {
                 PlaySound("illegal-move.wav");
                 ClearHighLights(false);
@@ -326,49 +340,56 @@ namespace Chess
                 return;
             }
 
-            sPieceCaptured = mChessGame.ChessBoard[aRowTo, aColTo] != null;
-            mChessGame.ChessBoard[sRowFrom, sColFrom] = null;
-            mChessGame.ChessBoard[aRowTo, aColTo] = mChessGame.SelectedPiece;
+            //Save the selected piece to move
+            aMove.PieceToMove = mChessGame.SelectedPiece;
 
+            //Handle promotions (only for UI)
+            if (!aComputerMove && aMove.PieceToMove is Pawn sPawn && (aMove.ToRow == 0 || aMove.ToRow == 7))
+            {
+                var sPawnPromotion = new PawnPromotion(mChessGame.ColorToMove);
+                sPawnPromotion.ShowDialog();
+                aMove.PromotionPiece = sPawnPromotion.SelectedPromotionPiece;
+                aMove.MoveType = MoveTypeEnum.Promotion;
+            }
+
+            //Format promotion string for move list
+            string sPromotion = aMove.MoveType == MoveTypeEnum.Promotion
+                ? $"={aMove.PromotionPiece.Abbreviation}"
+                : "";
+
+            //Get the move string before we make the move
+            string sMoveString = GetMoveStringBeforeCheck(aMove, sPromotion);
+
+            //Actually make the move (handles board state internally)
+            mChessGame.MakeMove(aMove, false);
+
+            //Update UI
             RefreshBoard();
 
-            if (sPieceCaptured)
+            //Play sound
+            if (aMove.MoveType == MoveTypeEnum.Capture || aMove.MoveType == MoveTypeEnum.EnPassant)
             {
                 PlaySound("capture.wav");
+            }
+            else if (aMove.MoveType == MoveTypeEnum.Promotion)
+            {
+                PlaySound("promotion.wav");
             }
             else
             {
                 PlaySound("move-self.wav");
             }
 
-            //Check if pawn promotion
-            string sPromotion = "";
-
-            if (mChessGame.SelectedPiece is Pawn && ((mChessGame.ColorToMove == ColorEnum.White && aRowTo == 0) || (mChessGame.ColorToMove == ColorEnum.Black && aRowTo == 7)))
-            {
-                PawnPromotion sPawnPromotion = new PawnPromotion(mChessGame.ColorToMove);
-                sPawnPromotion.ShowDialog();
-
-                mChessGame.ChessBoard[aRowTo, aColTo] = sPawnPromotion.SelectedPromotionPiece;
-                RefreshBoard();
-                PlaySound("promotion.wav");
-                sPromotion = $"={sPawnPromotion.SelectedPromotionPiece.Abbreviation}";
-            }
-
-            //Increment the move count
-            mChessGame.CurrentMove++;
-
-            mChessGame.ColorToMove = mChessGame.ColorToMove == ColorEnum.White ? ColorEnum.Black : ColorEnum.White;
-
-            //Clear the old highlights
+            //Clear highlights and show new move
             ClearHighLights();
+            HighlightCell(aMove.FromRow, aMove.FromCol, Colors.Yellow, "LastMove");
+            HighlightCell(aMove.ToRow, aMove.ToCol, Colors.Yellow, "LastMove");
 
-            //Highlight the move made
-            HighlightCell(sRowFrom, sColFrom, Colors.Yellow, "LastMove");
-            HighlightCell(aRowTo, aColTo, Colors.Yellow, "LastMove");
-
-            //Check if it resulted in a check
+            //Check for check/checkmate/stalemate
             bool sCheck = mChessGame.IsKingInCheck(mChessGame.ColorToMove);
+
+            //Add the move to the list
+            AddMoveToList(sMoveString, sCheck, aMove.MoveType == MoveTypeEnum.EnPassant);
 
             if (sCheck)
             {
@@ -381,11 +402,8 @@ namespace Chess
                 else
                 {
                     PlaySound("check.wav");
-                    int sRow = -1;
-                    int sCol = -1;
-
                     var sKingPos = mChessGame.GetKingPosition(mChessGame.ColorToMove);
-                    HighlightCell(sKingPos.aRow, sKingPos.aCol, Colors.Red, "Check");
+                    HighlightCell(sKingPos.Row, sKingPos.Col, Colors.Red, "Check");
                 }
             }
             else if (mChessGame.IsStalemate(mChessGame.ColorToMove))
@@ -394,37 +412,76 @@ namespace Chess
                 MessageBox.Show("Stalemate! The game is a draw!", "Game over!");
                 Close();
             }
-
-            //Add move to list
-            AddMoveToList(mChessGame.SelectedPiece, sRowFrom, sColFrom, aRowTo, aColTo, sPieceCaptured, sCheck, sPromotion);
-
-            mChessGame.SelectedPiece = null;
-
-            //Update eval bar
-            if(mSinglePlayer)
+            else if (mChessGame.IsThreefoldRule())
             {
-                UpdateEvalBar();
+                PlaySound("game-end.wav");
+                MessageBox.Show("Stalemate! The game is a draw by Threefold rule.", "Game over!");
+                Close();
+            }
+            else if(mChessGame.HalfMoveClock == 50)
+            {
+                PlaySound("game-end.wav");
+                MessageBox.Show("Stalemate! The game is a draw by 50 move rule.", "Game over!");
+                Close();
             }
 
-            //Change the timer
-            if (mTimerTimeSpan != null)
+            //UI and game flow
+            UpdateEvalBar();
+            ToggleTimer();
+
+            if (mSinglePlayer && mChessGame.ColorToMove != mSinglePlayerColor)
             {
-                if (mChessGame.ColorToMove == ColorEnum.White)
+                Dispatcher.InvokeAsync(() => ComputerMove(), DispatcherPriority.Background);
+            }
+        }
+
+        /// <summary>
+        /// Toggles the timer for the current player
+        /// </summary>
+        private void ToggleTimer()
+        {
+            if (mChessGame.ColorToMove == ColorEnum.White)
+            {
+                if (mTimerSetting.BlackEnabled)
                 {
-                    mTimerBlack.Stop();
+                    mTimerBlack?.Stop();
+                    mTimeBlack += TimeSpan.FromSeconds(mTimerSetting.BlackIncrement);
+                    BlackTimer.Text = mTimeWhite.ToString(@"mm\:ss");
+                }
+                if (mTimerSetting.WhiteEnabled)
+                {
                     mTimerWhite.Start();
                 }
-                else
+            }
+            else
+            {
+                if (mTimerSetting.WhiteEnabled)
                 {
                     mTimerWhite.Stop();
+                    if (mChessGame.CurrentMove > 2)
+                    {
+                        mTimeWhite += TimeSpan.FromSeconds(mTimerSetting.BlackIncrement);
+                    }
+                    WhiteTimer.Text = mTimeWhite.ToString(@"mm\:ss");
+                }
+                if (mTimerSetting.BlackEnabled)
+                {
                     mTimerBlack.Start();
                 }
             }
+        }
 
-            if(mSinglePlayer && mChessGame.ColorToMove == ColorEnum.Black)
-            {
-                ComputerMove();
-            }
+        /// <summary>
+        /// Moves the selected piece to the given row and col
+        /// </summary>
+        /// <param name="aRow"></param>
+        /// <param name="aCol"></param>
+        private void MovePiece(int aRow, int aCol)
+        {
+            int sRowFrom, sColFrom;
+            GetPositionForPiece(out sRowFrom, out sColFrom);
+            Move sMove = new Move(mChessGame.SelectedPiece, sRowFrom, sColFrom, aRow, aCol, mChessGame.ChessBoard[aRow, aCol]);
+            MovePiece(sMove);
         }
 
         /// <summary>
@@ -438,16 +495,17 @@ namespace Chess
             sStopWatch.Start();
 
             //Use the minimax algorithm
-            var sBestMove = mChessGame.MiniMax(4, false, out sPositionsTried);
+            bool sMaximizing = mChessGame.ColorToMove == ColorEnum.White ? true : false;
+            var sBestMove = mChessGame.MiniMax(mMinimaxDepth, sMaximizing, out sPositionsTried, int.MinValue, int.MaxValue, true, mMinimaxDepth);
 
             sStopWatch.Stop();
             Console.WriteLine($"Tried {sPositionsTried} in {sStopWatch.ElapsedMilliseconds}ms");
 
             //Make the move
-            if (sBestMove.RowFrom != -1 && sBestMove.ColFrom != -1 && sBestMove.RowTo != -1 && sBestMove.ColTo != -1)
+            if (sBestMove.BestMove != null)
             {
-                mChessGame.SelectedPiece = mChessGame.ChessBoard[sBestMove.RowFrom, sBestMove.ColFrom];
-                MovePiece(sBestMove.RowTo, sBestMove.ColTo);
+                mChessGame.SelectedPiece = mChessGame.ChessBoard[sBestMove.BestMove.FromRow, sBestMove.BestMove.FromCol];
+                MovePiece(sBestMove.BestMove, true);
             }
         }
 
@@ -500,32 +558,68 @@ namespace Chess
         /// <summary>
         /// Adds a move to the list of moves
         /// </summary>
-        /// <param name="aChessPiece">The piece that moved</param>
-        /// <param name="aRowFrom">The row the piece moved from</param>
-        /// <param name="aColFrom">The col the piece moved from</param>
-        /// <param name="aRowTo">The row the piece moved to</param>
-        /// <param name="aColTo">The row the piece moved to</param>
-        /// <param name="aTake">Did the moved piece capture a piece</param>
+        /// <param name="aMove">The move made</param>
         /// <param name="aCheck">Did the move result in a check?</param>
         /// <param name="aPromotion">Did the move result in a promotion? (pawns only)</param>
-            //TODO, castling kingside & queen side
-            //TODO, checkmate need to end with #
-        private void AddMoveToList(ChessPiece aChessPiece, int aRowFrom, int aColFrom, int aRowTo, int aColTo, bool aTake, bool aCheck, string aPromotion = "")
+        private void AddMoveToList(string aMoveStringBeforeCheck, bool aCheck, bool aEnPassant)
         {
-            if ((mChessGame.CurrentMove + 1) % 2 == 1)
+            string sCheck = aCheck ? "+" : "";
+            string sEnPassant = aEnPassant ? " e.p" : "";
+
+            aMoveStringBeforeCheck += $"{sCheck}{sEnPassant}";
+
+            if (mChessGame.ColorToMove == ColorEnum.Black)
             {
-                //White
-                string sText = string.Format("{0, -4} {1, -8}", $"{(mChessGame.CurrentMove + 1) / 2}.", $"{(aChessPiece is Pawn && aTake ? mChessGame.GetColumnCoordinate(aColFrom) : "")}{aChessPiece.Abbreviation}{(aTake ? "x" : "")}{mChessGame.GetColumnCoordinate(aColTo)}{mChessGame.GetRowCoordinate(aRowTo)}{aPromotion}{(aCheck ? "+" : "")}");
-                Moves.Items.Add(sText);
+                string sFullMove = string.Format("{0, -4} {1, -8}", mChessGame.CurrentMove-1, aMoveStringBeforeCheck);
+                Moves.Items.Add(sFullMove);
             }
             else
             {
-                //Black
-                string sText = Moves.Items[Moves.Items.Count - 1].ToString();
-                Moves.Items.RemoveAt(Moves.Items.Count - 1);
-                sText = sText + $" {(aChessPiece is Pawn && aTake ? mChessGame.GetColumnCoordinate(aColFrom) : "")}{aChessPiece.Abbreviation}{(aTake ? "x" : "")}{mChessGame.GetColumnCoordinate(aColTo)}{mChessGame.GetRowCoordinate(aRowTo)}{aPromotion}{(aCheck ? "+" : "")}";
-                Moves.Items.Add(sText);
+                string sPrevious = Moves.Items[Moves.Items.Count - 1].ToString();
+                Moves.Items[Moves.Items.Count - 1] = $"{sPrevious} {aMoveStringBeforeCheck}";
             }
+        }
+
+        /// <summary>
+        /// Gets the move string until the check mark
+        /// </summary>
+        /// <returns></returns>
+        private string GetMoveStringBeforeCheck(Move aMove, string aPromotion)
+        {
+            string sMoveNumber = $"{(mChessGame.CurrentMove + 1) / 2}.";
+
+            string sMoveText = "";
+
+            if (aMove.MoveType == MoveTypeEnum.CastlingKingSide)
+            {
+                sMoveText = "O-O";
+            }
+            else if (aMove.MoveType == MoveTypeEnum.CastlingQueenSide)
+            {
+                sMoveText = "O-O-O";
+            }
+            else
+            {
+                bool sIsPawnCapture = aMove.PieceToMove is Pawn && aMove.PieceCaptured != null;
+                string sFromFile = sIsPawnCapture ? $"{mChessGame.GetColumnCoordinate(aMove.FromCol)}" : "";
+                string sCapture = aMove.PieceCaptured != null ? "x" : "";
+                string sToSquare = $"{mChessGame.GetColumnCoordinate(aMove.ToCol)}{mChessGame.GetRowCoordinate(aMove.ToRow)}";
+
+                sMoveText = $"{sFromFile}{aMove.PieceToMove.Abbreviation}{sCapture}{sToSquare}{aPromotion}";
+            }
+
+            return sMoveText;
+        }
+
+        /// <summary>
+        /// Disposes the timers
+        /// </summary>
+        public void Dispose()
+        {
+            mTimerWhite?.Stop();
+            mTimerBlack?.Stop();
+            mTimerWhite = null;
+            mTimerBlack = null;
         }
         #endregion
     }
