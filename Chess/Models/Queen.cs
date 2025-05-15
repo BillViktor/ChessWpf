@@ -6,7 +6,7 @@
     public class Queen : ChessPiece
     {
         public Queen(ColorEnum aColor)
-        {
+        { 
             Color = aColor;
             Value = aColor == ColorEnum.White ? 900 : -900;
 

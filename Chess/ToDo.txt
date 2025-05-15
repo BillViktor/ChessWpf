@@ -1,2 +1,0 @@
-- Se till att alla test passerar
-- Performance på minimax

@@ -3,7 +3,7 @@ using System.Windows.Shapes;
 
 namespace Chess
 {
-    public class ChessGame
+    public class ChessGame 
     {
         #region Fields
         private string mStartingString = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";

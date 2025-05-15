@@ -6,7 +6,7 @@
     public class Rook : ChessPiece
     {
         public Rook(ColorEnum aColor)
-        {
+        { 
             Color = aColor;
             Value = aColor == ColorEnum.White ? 500 : -500;
 

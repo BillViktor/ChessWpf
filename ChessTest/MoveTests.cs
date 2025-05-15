@@ -7,7 +7,7 @@ namespace ChessTest
     /// Tests for moving chess pieces.
     /// </summary>
     [TestClass]
-    public sealed class MoveTests
+    public sealed class MoveTests 
     {
         private ChessGame mChessGame;
         private string mStartingFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";

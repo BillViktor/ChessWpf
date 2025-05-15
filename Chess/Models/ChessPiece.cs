@@ -4,7 +4,7 @@
     /// Abstract class that represents a chess piece.
     /// Implements the IChessPiece interface.
     /// </summary>
-    public abstract class ChessPiece : IChessPiece
+    public abstract class ChessPiece : IChessPiece 
     {
         //Fields
         private int mValue;

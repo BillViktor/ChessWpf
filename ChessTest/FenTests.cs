@@ -7,7 +7,7 @@ namespace ChessTest
     /// Tests for the FEN (Forsyth-Edwards Notation) functionality in the ChessGame class.
     /// </summary>
     [TestClass]
-    public sealed class FenTests
+    public sealed class FenTests 
     {
         private ChessGame mChessGame;
         private string mStartingFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";

@@ -6,7 +6,7 @@ namespace Chess
     /// <summary>
     /// Interaction logic for SettingWindow.xaml
     /// </summary>
-    public partial class SettingWindow : Window
+    public partial class SettingWindow : Window 
     {
         private TimerSetting mTimerSetting = new TimerSetting();
         private bool mSinglePlayer;

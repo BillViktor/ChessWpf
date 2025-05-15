@@ -6,7 +6,7 @@
         public bool WhiteEnabled { get; set; }
         public int WhiteTimer { get; set; }
         public int WhiteIncrement { get; set; }
-
+         
         //Black
         public bool BlackEnabled { get; set; }
         public int BlackTimer { get; set; }
