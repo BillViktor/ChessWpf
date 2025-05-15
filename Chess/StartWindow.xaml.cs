@@ -5,7 +5,7 @@ namespace Chess
     /// <summary>
     /// Interaction logic for StartWindow.xaml
     /// </summary>
-    public partial class StartWindow : Window
+    public partial class StartWindow : Window 
     {
         public StartWindow()
         {

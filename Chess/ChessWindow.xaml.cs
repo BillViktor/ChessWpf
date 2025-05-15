@@ -14,7 +14,7 @@ namespace Chess
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class ChessWindow : Window, IDisposable
+    public partial class ChessWindow : Window, IDisposable 
     {
         private ChessGame mChessGame = new ChessGame();
         private int mMinimaxDepth = 4;

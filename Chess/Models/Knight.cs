@@ -4,7 +4,7 @@
     /// Class representing a Knight chess piece.
     /// </summary>
     public class Knight : ChessPiece
-    {
+    { 
         public Knight(ColorEnum aColor)
         {
             Color = aColor;

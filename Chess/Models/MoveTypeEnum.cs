@@ -7,7 +7,7 @@
     {
         Normal,
         Capture,
-        EnPassant,
+        EnPassant, 
         CastlingQueenSide,
         CastlingKingSide,
         Promotion,

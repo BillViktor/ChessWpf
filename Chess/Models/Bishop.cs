@@ -3,7 +3,7 @@
     /// <summary>
     /// Class that represents a bishop chess piece.
     /// </summary>
-    public class Bishop : ChessPiece
+    public class Bishop : ChessPiece 
     {
         public Bishop(ColorEnum aColor)
         {

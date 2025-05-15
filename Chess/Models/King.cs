@@ -7,7 +7,7 @@
     {
         public King(ColorEnum aColor)
         {
-            Color = aColor;
+            Color = aColor; 
             Value = 0;
 
             if (aColor == ColorEnum.Black)

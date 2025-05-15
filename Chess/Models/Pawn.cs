@@ -5,7 +5,7 @@
     /// </summary>
     public class Pawn : ChessPiece
     {
-        public Pawn(ColorEnum aColor)
+        public Pawn(ColorEnum aColor) 
         {
             Color = aColor;
             Value = aColor == ColorEnum.White ? 100 : -100;
