@@ -1,6 +1,4 @@
 ﻿using Chess;
-using ChessTest.Models;
-using System.Net.Http.Json;
 
 namespace ChessTest
 {
