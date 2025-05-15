@@ -9,7 +9,7 @@ namespace Chess
     /// <summary>
     /// Interaction logic for PawnPromotion.xaml
     /// </summary>
-    public partial class PawnPromotion : Window
+    public partial class PawnPromotion : Window 
     {
         //Fields
         private ColorEnum mColor;

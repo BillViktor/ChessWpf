@@ -11,7 +11,7 @@ namespace ChessTest
     /// Please note that these tests are also very dependent on the correctness of the MoveGenerator classes.
     /// </summary>
     [TestClass]
-    public sealed class MinimaxTests
+    public sealed class MinimaxTests 
     {
         private ChessGame mChessGame;
         private string mFenInitialPosition = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
